@@ -4,12 +4,12 @@ go 1.20
 
 require (
 	cloud.google.com/go/bigquery v1.44.0
-	cloud.google.com/go/storage v1.29.0
 	github.com/m-lab/go v0.1.56
 	google.golang.org/api v0.106.0
 )
 
 require (
+	cloud.google.com/go/storage v1.29.0 // indirect
 	github.com/DataDog/go-hll v1.0.2 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/v10 v10.0.0 // indirect
@@ -62,7 +62,6 @@ require (
 	cloud.google.com/go/compute v1.14.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v0.8.0 // indirect
-	github.com/araddon/dateparse v0.0.0-20200409225146-d820a6159ab1 // indirect
 	github.com/goccy/bigquery-emulator v0.2.12
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
