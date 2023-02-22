@@ -289,7 +289,3 @@ func TestClient_UpdateSchema(t *testing.T) {
 		})
 	}
 }
-
-func TestClient_Load(t *testing.T) {
-	// TODO(cristinaleon): Add Client.Load() tests.
-}

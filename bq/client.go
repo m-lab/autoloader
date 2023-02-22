@@ -2,7 +2,6 @@ package bq
 
 import (
 	"context"
-	"fmt"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/m-lab/autoloader/api"
@@ -83,29 +82,4 @@ func (c *Client) UpdateSchema(ctx context.Context, ds *bigquery.Dataset, dt *api
 		Schema: bqSchema,
 	}, "")
 	return err
-}
-
-// Load loads data from a set of GCS uris to a BigQuery table. It overwrites the existing data in
-// the destination table. If the table name includes a partition decoration (e.g., table$YYYYMMDD),
-// it will only overwrite said partition.
-func (c *Client) Load(ctx context.Context, ds *bigquery.Dataset, name string, uri ...string) error {
-	gcsRef := bigquery.NewGCSReference(uri...)
-	gcsRef.SourceFormat = bigquery.JSON
-	loader := ds.Table(name).LoaderFrom(gcsRef)
-	loader.WriteDisposition = bigquery.WriteTruncate
-
-	job, err := loader.Run(ctx)
-	if err != nil {
-		return err
-	}
-
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return err
-	}
-
-	if status.Err() != nil {
-		return fmt.Errorf("job completed with error: %v, %v", status.Err(), err)
-	}
-	return nil
 }
