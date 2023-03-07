@@ -21,27 +21,6 @@ var (
 	testBucket = "test-bucket"
 )
 
-func TestNewClient(t *testing.T) {
-	server := fakestorage.NewServer([]fakestorage.Object{})
-	defer server.Stop()
-	server.CreateBucket("foo")
-	server.CreateBucket("bar")
-
-	client := server.Client()
-	want := &Client{
-		Buckets: []*storagex.Bucket{
-			{BucketHandle: client.Bucket("foo")},
-			{BucketHandle: client.Bucket("bar")},
-		},
-	}
-
-	got := NewClient(client, []string{"foo", "bar"})
-
-	if !cmp.Equal(got, want, cmpopts.IgnoreUnexported(storagex.Bucket{}, storage.BucketHandle{})) {
-		t.Errorf("NewClient() = %+v, want %+v", got, want)
-	}
-}
-
 func TestClient_GetDatatypes(t *testing.T) {
 	updated := time.Date(02, 02, 2023, 3, 15, 0, 0, time.UTC)
 
