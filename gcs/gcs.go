@@ -42,7 +42,7 @@ type StorageReader interface {
 	NewReader(context.Context) (*storage.Reader, error)
 }
 
-// NewClient returns a new GCSClient for the specified bucket names.
+// NewClient returns a new Client for the specified bucket names.
 func NewClient(c *storage.Client, names []string) *Client {
 	buckets := make([]*storagex.Bucket, 0)
 	for _, name := range names {
