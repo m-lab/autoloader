@@ -55,7 +55,8 @@ func NewClient(c *storage.Client, names []string) *Client {
 	}
 }
 
-// GetDatatypes get a list of datatypes for all the buckets.
+// GetDatatypes gets a list of datatypes for all the buckets
+// (e.g., all datatypes under `autoload/v1/tables`).
 func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 	prefix := path.Join(prefix, "tables")
 	datatypes := make([]*api.Datatype, 0)
