@@ -4,12 +4,13 @@ go 1.20
 
 require (
 	cloud.google.com/go/bigquery v1.44.0
-	github.com/m-lab/go v0.1.56
+	cloud.google.com/go/storage v1.29.0
+	github.com/m-lab/go v0.1.59
 	google.golang.org/api v0.106.0
 )
 
 require (
-	cloud.google.com/go/storage v1.29.0 // indirect
+	cloud.google.com/go/pubsub v1.28.0 // indirect
 	github.com/DataDog/go-hll v1.0.2 // indirect
 	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/apache/arrow/go/v10 v10.0.0 // indirect
@@ -18,6 +19,7 @@ require (
 	github.com/dlclark/regexp2 v1.7.0 // indirect
 	github.com/dop251/goja v0.0.0-20221118162653-d4bf6fde1b86 // indirect
 	github.com/fatih/color v1.10.0 // indirect
+	github.com/felixge/httpsnoop v1.0.2 // indirect
 	github.com/go-playground/locales v0.14.0 // indirect
 	github.com/go-playground/universal-translator v0.18.0 // indirect
 	github.com/go-playground/validator/v10 v10.11.0 // indirect
@@ -28,6 +30,8 @@ require (
 	github.com/goccy/go-zetasqlite v0.13.3 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/google/flatbuffers v2.0.8+incompatible // indirect
+	github.com/google/renameio/v2 v2.0.0 // indirect
+	github.com/gorilla/handlers v1.5.1 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/klauspost/asmfmt v1.3.2 // indirect
 	github.com/klauspost/compress v1.15.9 // indirect
@@ -43,8 +47,10 @@ require (
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pierrec/lz4/v4 v4.1.15 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pkg/xattr v0.4.9 // indirect
 	github.com/segmentio/encoding v0.3.5 // indirect
 	github.com/segmentio/parquet-go v0.0.0-20221020201645-63215c8128ff // indirect
+	github.com/sirupsen/logrus v1.9.0 // indirect
 	github.com/spaolacci/murmur3 v0.0.0-20180118202830-f09979ecbc72 // indirect
 	github.com/zeebo/xxh3 v1.0.2 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
@@ -62,10 +68,11 @@ require (
 	cloud.google.com/go/compute v1.14.0 // indirect
 	cloud.google.com/go/compute/metadata v0.2.3 // indirect
 	cloud.google.com/go/iam v0.8.0 // indirect
+	github.com/fsouza/fake-gcs-server v1.44.0
 	github.com/goccy/bigquery-emulator v0.2.12
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
-	github.com/google/go-cmp v0.5.9 // indirect
+	github.com/google/go-cmp v0.5.9
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.1 // indirect
 	github.com/googleapis/gax-go/v2 v2.7.0 // indirect
