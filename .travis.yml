@@ -1,0 +1,19 @@
+language: go
+go:
+- 1.20
+
+before_install:
+- go install -v github.com/mattn/goveralls@latest
+- go get -v -t ./...
+
+script:
+- go get -u ./...
+- go vet ./...
+- CGO_ENABLED=0 go build ./...
+- go test ./... -race
+- go test ./... -v -coverprofile=_coverage.cov
+
+after_success:
+# Note: Do this in the after_success stage so that
+# a broken coveralls won't cause the build to fail.
+- $HOME/gopath/bin/goveralls -coverprofile=_coverage.cov -service=travis-ci
