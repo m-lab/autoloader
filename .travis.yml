@@ -10,7 +10,7 @@ before_install:
 - go install -v github.com/mattn/goveralls@latest
 - sudo apt-get update
 - sudo apt-get install build-essential
-- sudo apt-get install clang-14
+- clang --version
 - go get -v -t ./...
 
 script:
