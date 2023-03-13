@@ -1,6 +1,7 @@
 language: go
 go:
 - 1.20
+dist: bionic
 
 env:
   global:
