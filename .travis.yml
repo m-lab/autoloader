@@ -4,6 +4,7 @@ go:
 
 env:
   global:
+    - CC="clang"
     - CXX=clang++
 
 before_install:
