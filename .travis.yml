@@ -10,12 +10,12 @@ env:
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
-- sudo apt-get install build-essential
-- wget https://apt.llvm.org/llvm.sh
-- chmod +x llvm.sh
-- sudo ./llvm.sh 14
-- sudo apt-get install clang-14
+# - wget https://apt.llvm.org/llvm.sh
+# - chmod +x llvm.sh
+# - sudo ./llvm.sh 14
+- sudo apt-add-repository "deb http://llvm.org/apt/focal/ llvm-toolchain-focal-14 main"
 - sudo apt-get update
+- sudo apt-get install clang-14
 - clang --version
 - clang++ --version
 - go get -v -t ./...
