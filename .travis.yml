@@ -1,7 +1,6 @@
 language: go
 go:
 - 1.20
-dist: focal
 
 env:
   global:
@@ -14,8 +13,8 @@ before_install:
 - sudo apt-get install build-essential
 - wget https://apt.llvm.org/llvm.sh
 - chmod +x llvm.sh
-- sudo ./llvm.sh 14
-- sudo apt-get install clang-14
+- sudo ./llvm.sh 12
+- sudo apt-get install clang-12
 - clang --version
 - go get -v -t ./...
 
