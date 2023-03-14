@@ -8,22 +8,9 @@ env:
     - CC=clang
     - CXX=clang++
 
-addons:
-  apt:
-    sources:
-      - llvm-toolchain-focal
-    packages:
-      - clang-14
-
 before_install:
 - go install -v github.com/mattn/goveralls@latest
-- wget https://apt.llvm.org/llvm.sh
-- chmod +x llvm.sh
-- sudo ./llvm.sh 14
 - sudo apt-get update
-- sudo apt-get install clang-14
-- export PATH=$PWD/clang-14/bin/:$PATH
-- clang --version
 - go get -v -t ./...
 
 script:
