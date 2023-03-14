@@ -16,13 +16,14 @@ before_install:
 - sudo ./llvm.sh 14
 - sudo apt-get install clang-14
 - export PATH="/usr/bin/:/usr/bin/clang-14:$PATH"
+- sudo apt-get update
+- sudo apt-get install build-essential
 - which clang
 - which clang-14
 - clang++ --version
 - clang --version
 - clang-14 --version
-- sudo apt-get update
-- sudo apt-get install build-essential
+- dpkg --list | grep libst
 - go get -v -t ./...
 
 script:
