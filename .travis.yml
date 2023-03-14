@@ -15,8 +15,8 @@ before_install:
 - sudo ./llvm.sh 14
 - sudo apt-get update
 - sudo apt-get install clang-14
+- export PATH=$PWD/clang-14/bin/:$PATH
 - clang --version
-- ./clang --version
 - go get -v -t ./...
 
 script:
