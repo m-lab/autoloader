@@ -6,7 +6,7 @@ env:
   global:
     - CC=clang
     - CXX=clang++
-    - CGO_CXXFLAGS="-02 -g -std=c++1"
+    - CGO_CXXFLAGS="-02 -g -std=c++17"
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
