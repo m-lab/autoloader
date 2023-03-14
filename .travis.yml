@@ -1,6 +1,7 @@
 language: go
 go:
 - 1.20
+dist: focal
 
 env:
   global:
@@ -10,6 +11,12 @@ env:
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
+- wget https://apt.llvm.org/llvm.sh
+- chmod +x llvm.sh
+- sudo ./llvm.sh 14
+- sudo apt-get install clang-14
+- which clang
+- which clang-14
 - sudo apt-get update
 - sudo apt-get install build-essential
 - go get -v -t ./...
