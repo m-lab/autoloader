@@ -10,14 +10,13 @@ env:
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
-- sudo apt-get update
 - wget https://apt.llvm.org/llvm.sh
 - chmod +x llvm.sh
 - sudo ./llvm.sh 14
+- sudo apt-get update
 - sudo apt-get install clang-14
-- sudo apt-get upgrade
 - clang --version
-- clang++ --version
+- ./clang --version
 - go get -v -t ./...
 
 script:
