@@ -1,21 +1,21 @@
 language: go
 go:
 - 1.20
-dist: trusty
+dist: focal
 
 env:
   global:
     - CC=clang
-    - CXX=clang
-#   - CGO_CXXFLAGS="-std=c++17"
+    - CXX=clang-14
+    - CGO_CXXFLAGS="-std=c++17"
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
-# - wget https://apt.llvm.org/llvm.sh
-# - chmod +x llvm.sh
-# - sudo ./llvm.sh 14
-# - sudo apt-get install clang-14
-# - export PATH="/usr/bin/:/usr/bin/clang-14:$PATH"
+- wget https://apt.llvm.org/llvm.sh
+- chmod +x llvm.sh
+- sudo ./llvm.sh 14
+- sudo apt-get install clang-14
+- export PATH="/usr/bin/:/usr/bin/clang-14:$PATH"
 - sudo apt-get update
 - sudo apt-get install build-essential
 # - which clang
@@ -28,7 +28,7 @@ before_install:
 
 script:
 - go get -u ./...
-- go vet ./...
+- go vet -v ./...
 - go build ./...
 - go test ./... -v -coverprofile=_coverage.cov
 - go test ./... -race
