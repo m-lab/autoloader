@@ -6,16 +6,16 @@ env:
   global:
     - CC=clang
     - CXX=clang
-    - CGO_CXXFLAGS="-std=c++17 -stdlib=libc++"
+    - CGO_CXXFLAGS="-std=c++17 -stdlib=libstdc++-9-dev:amd64 "
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
-- wget https://apt.llvm.org/llvm.sh
-- chmod +x llvm.sh
-- sudo ./llvm.sh 13
+# - wget https://apt.llvm.org/llvm.sh
+# - chmod +x llvm.sh
+# - sudo ./llvm.sh 13
 # - sudo apt-get install clang-13
-- sudo apt install libc++-13-dev libc++abi-13-dev
-- export PATH="/usr/bin/:$PATH"
+# - sudo apt install libc++-13-dev libc++abi-13-dev
+# - export PATH="/usr/bin/:$PATH"
 - sudo apt-get update
 - sudo apt-get install build-essential
 # - which clang
