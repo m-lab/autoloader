@@ -30,7 +30,7 @@ before_install:
 
 script:
 - docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c
-  "go get -u ./... && go vet -v ./... && go build -v ./... && go test ./... -v -coverprofile=_coverage.cov && go test ./... -v -race"
+  "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
 
 after_success:
 # Note: Do this in the after_success stage so that
