@@ -1,0 +1,7 @@
+timeout: 3600s
+
+steps:
+# Run unit tests for environment.
+- name: gcr.io/$PROJECT_ID/golang-cbif:1.18
+  args:
+  - go version
