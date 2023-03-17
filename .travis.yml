@@ -9,7 +9,7 @@ env:
     - CXX=clang-14
     - CGO_CXXFLAGS="-std=c++17"
     - GODIR=/go/src/github.com/m-lab/autoloader
-    - IMAGE=cristinaleon/autoloader:0
+    - IMAGE=cristinaleonr/autoloader:0
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
