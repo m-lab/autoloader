@@ -6,17 +6,18 @@ dist: focal
 env:
   global:
     - CC=clang
-    - CXX=clang
-    - CGO_CXXFLAGS="-std=c++17 -stdlib=libc++"
+    - CXX=clang-14
+    - CGO_CXXFLAGS="-std=c++17"
+    - GODIR=/go/src/github.com/m-lab/autoloader
+    - IMAGE=cristinaleon/autoloader:0
 
 before_install:
 - go install -v github.com/mattn/goveralls@latest
 - wget https://apt.llvm.org/llvm.sh
 - chmod +x llvm.sh
 - sudo ./llvm.sh 14
-# - sudo apt-get install clang-13
-- sudo apt install libc++-14-dev libc++abi-14-dev
-- export PATH="/usr/bin/:$PATH"
+- sudo apt-get install clang-14
+- export PATH="/usr/bin/:/usr/bin/clang-14:$PATH"
 - sudo apt-get update
 - sudo apt-get install build-essential
 # - which clang
@@ -28,11 +29,8 @@ before_install:
 - go get -v -t ./...
 
 script:
-- go get -u ./...
-# - go vet -v ./...
-- go build ./...
-- go test ./... -v -coverprofile=_coverage.cov
-- go test ./... -race
+- docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c
+  "go get -u ./... && go vet -v ./... && go build -v ./... && go test ./... -v -coverprofile=_coverage.cov && go test ./... -v race"
 
 after_success:
 # Note: Do this in the after_success stage so that
