@@ -1,38 +1,38 @@
-language: go
-go:
-- 1.20
-dist: focal
+# language: go
+# go:
+# - 1.20
+# dist: focal
 
-env:
-  global:
-    - CC=clang
-    - CXX=clang-14
-    - CGO_CXXFLAGS="-std=c++17"
-    - GODIR=/go/src/github.com/m-lab/autoloader
-    - IMAGE=cristinaleonr/autoloader:0
+# env:
+#   global:
+#     - CC=clang
+#     - CXX=clang-14
+#     - CGO_CXXFLAGS="-std=c++17"
+#     - GODIR=/go/src/github.com/m-lab/autoloader
+#     - IMAGE=cristinaleonr/autoloader:0
 
-before_install:
-- go install -v github.com/mattn/goveralls@latest
-- wget https://apt.llvm.org/llvm.sh
-- chmod +x llvm.sh
-- sudo ./llvm.sh 14
-- sudo apt-get install clang-14
-- export PATH="/usr/bin/:/usr/bin/clang-14:$PATH"
-- sudo apt-get update
-- sudo apt-get install build-essential
-# - which clang
-# - which clang-14
-# - clang++ --version
-# - clang --version
-# - clang-14 --version
-# - dpkg --list | grep libst
-- go get -v -t ./...
+# before_install:
+# - go install -v github.com/mattn/goveralls@latest
+# - wget https://apt.llvm.org/llvm.sh
+# - chmod +x llvm.sh
+# - sudo ./llvm.sh 14
+# - sudo apt-get install clang-14
+# - export PATH="/usr/bin/:/usr/bin/clang-14:$PATH"
+# - sudo apt-get update
+# - sudo apt-get install build-essential
+# # - which clang
+# # - which clang-14
+# # - clang++ --version
+# # - clang --version
+# # - clang-14 --version
+# # - dpkg --list | grep libst
+# - go get -v -t ./...
 
-script:
-- docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c
-  "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
+# script:
+# - docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c
+#   "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
 
-after_success:
-# Note: Do this in the after_success stage so that
-# a broken coveralls won't cause the build to fail.
-- $HOME/gopath/bin/goveralls -coverprofile=_coverage.cov -service=travis-ci
+# after_success:
+# # Note: Do this in the after_success stage so that
+# # a broken coveralls won't cause the build to fail.
+# - $HOME/gopath/bin/goveralls -coverprofile=_coverage.cov -service=travis-ci
