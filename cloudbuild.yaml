@@ -6,16 +6,13 @@ options:
   - CGO_ENABLED=1
 
 steps:
-# Run unit tests for environment.
-- name: gcr.io/$PROJECT_ID/golang-cbif:1.18
+
+- name: gcr.io/cloud-builders/docker
+  args: [
+    "build", "-t", "testing", "-f", "Dockerfile", "."
+  ]
+
+- name: testing
   args:
   - go version
-  # - go get -v -t ./...
-  - apt-get update
-  - apt-get install -y --no-install-recommends clang
-  # - go vet -v ./...
-  # - go build -v ./...
-  # - go test -v -coverprofile=_coverage.cov ./...
-  # - go test -v -race ./...
-  - docker run -w /go/src/github.com/m-lab/autoloader -v $$GOPATH/pkg/mod:/go/pkg/mod -v $$PWD:/go/src/github.com/m-lab/autoloader cristinaleonr/autoloader:0 sh -c
-    "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
+  - go vet ./...

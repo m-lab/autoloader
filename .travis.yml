@@ -29,8 +29,8 @@ before_install:
 - go get -v -t ./...
 
 script:
-# - docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c
-#   "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
+ - docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c
+   "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
 - go version
 
 # after_success:
