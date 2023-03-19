@@ -4,8 +4,8 @@ steps:
 # Run unit tests for environment.
 - name: gcr.io/$PROJECT_ID/golang-cbif:1.18
   args:
-  # - go version
-  # - go get -v -t ./...
+  - go version
+  - go get -v -t ./...
   - apt-get update
   - apt-get install -y --no-install-recommends clang
   - go vet -v ./...
@@ -14,3 +14,4 @@ steps:
   - go test -v -race ./...
   env:
   - CXX=clang++
+  - CGO_ENABLED=1
