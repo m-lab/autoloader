@@ -4,8 +4,8 @@ options:
   env:
   - CXX=clang++
   - CGO_ENABLED=1
-  - GOPATH=$GOPATH
-  - PWD=$PWD
+  - _GOPATH=$GOPATH
+  - _PWD=$PWD
 
 steps:
 # Run unit tests for environment.
@@ -19,5 +19,5 @@ steps:
   # - go build -v ./...
   # - go test -v -coverprofile=_coverage.cov ./...
   # - go test -v -race ./...
-  - docker run -w /go/src/github.com/m-lab/autoloader -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:/go/src/github.com/m-lab/autoloader cristinaleonr/autoloader:0 sh -c
+  - docker run -w /go/src/github.com/m-lab/autoloader -v ${_GOPATH}/pkg/mod:/go/pkg/mod -v ${_PWD}:/go/src/github.com/m-lab/autoloader cristinaleonr/autoloader:0 sh -c
     "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
