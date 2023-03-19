@@ -4,8 +4,6 @@ options:
   env:
   - CXX=clang++
   - CGO_ENABLED=1
-  - GODIR=/go/src/github.com/m-lab/autoloader
-  - IMAGE=cristinaleonr/autoloader:0
   - GOPATH=$GOPATH
   - PWD=$PWD
 
@@ -21,5 +19,5 @@ steps:
   # - go build -v ./...
   # - go test -v -coverprofile=_coverage.cov ./...
   # - go test -v -race ./...
-  - docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c
+  - docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:/go/src/github.com/m-lab/autoloader cristinaleonr/autoloader:0 sh -c
     "go get -u ./... && go vet -v ./... && go build -v ./... && go test -v -coverprofile=_coverage.cov ./... && go test -v -race ./..."
