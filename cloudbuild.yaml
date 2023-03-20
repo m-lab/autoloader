@@ -8,13 +8,8 @@ options:
 steps:
 
 - name: gcr.io/cloud-builders/docker
-  args: [
-    "build", "-t", "testing", "-f", "Dockerfile", "."
-  ]
-
-- name: testing
   entrypoint: 'bash'
   args:
-    - -c
-    - |
-      docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c "go vet -v ./..."
+  - -c
+  - |
+    docker run -w /go/src/github.com/m-lab/autoloader -v $$GOPATH/pkg/mod:/go/pkg/mod -v $$PWD:/go/src/github.com/m-lab/autoloader cristinaleonr/autoloader:0 sh -c "go vet -v ./..."
