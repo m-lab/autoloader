@@ -12,4 +12,4 @@ steps:
   args:
   - -c
   - |
-    docker run -w /go/src/github.com/m-lab/autoloader -v $$GOPATH/pkg/mod:/go/pkg/mod -v $$PWD:/go/src/github.com/m-lab/autoloader cristinaleonr/autoloader:0 sh -c "go vet -v ./..."
+  docker run -w /go/src/github.com/m-lab/autoloader -v $$GOPATH/pkg/mod:/go/pkg/mod -v $$PWD:/go/src/github.com/m-lab/autoloader cristinaleonr/autoloader:0 sh -c "go vet -v ./... && go build -v ./..."
