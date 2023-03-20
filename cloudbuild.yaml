@@ -13,6 +13,8 @@ steps:
   ]
 
 - name: testing
+  entrypoint: 'bash'
   args:
-  - go version
-  - go vet ./...
+    - -c
+    - |
+      docker run -w $GODIR -v $GOPATH/pkg/mod:/go/pkg/mod -v $PWD:$GODIR $IMAGE sh -c "go vet -v ./..."
