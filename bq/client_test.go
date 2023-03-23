@@ -6,12 +6,10 @@ import (
 	"testing"
 
 	"cloud.google.com/go/bigquery"
-	"github.com/goccy/bigquery-emulator/server"
 	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
 	"github.com/m-lab/autoloader/api"
 	"github.com/m-lab/go/cloudtest/bqfake"
 	"github.com/m-lab/go/testingx"
-	"google.golang.org/api/option"
 )
 
 var (
@@ -19,28 +17,6 @@ var (
 	datasetID = "dataset"
 	tableID   = "table"
 )
-
-func mustSetUpTest(t *testing.T, src server.Source) (*bigquery.Client, func()) {
-	bqServer, err := server.New(server.TempStorage)
-	testingx.Must(t, err, "could not create BQ test server")
-
-	err = bqServer.Load(src)
-	testingx.Must(t, err, "could not load BQ test source")
-
-	err = bqServer.SetProject(projectID)
-	testingx.Must(t, err, "could not set BQ test project")
-
-	testServer := bqServer.TestServer()
-
-	ctx := context.Background()
-	client, err := bigquery.NewClient(ctx, projectID, option.WithEndpoint(testServer.URL), option.WithoutAuthentication())
-	testingx.Must(t, err, "could not start BQ test client")
-
-	return client, func() {
-		testServer.Close()
-		client.Close()
-	}
-}
 
 func TestClient_GetDataset(t *testing.T) {
 	ds := bqfake.NewDataset(nil, &bqiface.DatasetMetadata{
