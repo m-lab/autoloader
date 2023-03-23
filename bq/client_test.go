@@ -2,19 +2,22 @@ package bq
 
 import (
 	"context"
-	"os"
+	"errors"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/goccy/bigquery-emulator/server"
-	"github.com/goccy/bigquery-emulator/types"
+	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
 	"github.com/m-lab/autoloader/api"
+	"github.com/m-lab/go/cloudtest/bqfake"
 	"github.com/m-lab/go/testingx"
 	"google.golang.org/api/option"
 )
 
 var (
 	projectID = "project"
+	datasetID = "dataset"
+	tableID   = "table"
 )
 
 func mustSetUpTest(t *testing.T, src server.Source) (*bigquery.Client, func()) {
@@ -40,46 +43,47 @@ func mustSetUpTest(t *testing.T, src server.Source) (*bigquery.Client, func()) {
 }
 
 func TestClient_GetDataset(t *testing.T) {
-	datasetID := "dataset-get"
-	ds := types.NewDataset(datasetID)
-
-	client, teardown := mustSetUpTest(t, server.StructSource(types.NewProject(projectID, ds)))
-	defer teardown()
-	c := &Client{
-		Client: client,
-	}
+	ds := bqfake.NewDataset(nil, &bqiface.DatasetMetadata{
+		DatasetMetadata: bigquery.DatasetMetadata{
+			Name: datasetID,
+		},
+	}, nil)
 
 	tests := []struct {
-		name    string
-		dsID    string
-		wantErr bool
-		want    *bigquery.Dataset
+		name     string
+		datasets map[string]*bqfake.Dataset
+		want     *bqfake.Dataset
+		wantErr  bool
 	}{
 		{
-			name:    "exists",
-			dsID:    datasetID,
-			wantErr: false,
-			want: &bigquery.Dataset{
-				ProjectID: projectID,
-				DatasetID: datasetID,
-			},
+			name:     "exists",
+			datasets: map[string]*bqfake.Dataset{datasetID: ds},
+			want:     ds,
+			wantErr:  false,
 		},
 		{
-			name:    "not-exists",
-			dsID:    "nonexistent-dataset",
-			wantErr: true,
+			name:     "not-exists",
+			datasets: map[string]*bqfake.Dataset{},
+			wantErr:  true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := c.GetDataset(context.Background(), tt.dsID)
+			bq, err := bqfake.NewClient(context.TODO(), projectID, tt.datasets)
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{bq}
+
+			got, err := c.GetDataset(context.Background(), datasetID)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Client.GetDataset() error = %v, wantErr = %v", err, tt.wantErr)
+				t.Fatalf("Client.GetDataset() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr {
 				return
 			}
 
-			if !tt.wantErr && (got.ProjectID != tt.want.ProjectID || got.DatasetID != tt.want.DatasetID) {
+			if got != tt.want {
 				t.Errorf("Client.GetDataset() = %v, want = %v", got, tt.want)
 			}
 		})
@@ -87,204 +91,169 @@ func TestClient_GetDataset(t *testing.T) {
 }
 
 func TestClient_CreateDataset(t *testing.T) {
-	datasetID := "dataset-create"
-	dt := &api.Datatype{
-		Experiment: datasetID,
-	}
-	want := &bigquery.Dataset{
-		ProjectID: projectID,
-		DatasetID: datasetID,
-	}
-
-	client, teardown := mustSetUpTest(t, server.StructSource(types.NewProject(projectID)))
-	defer teardown()
-	c := &Client{
-		Client: client,
-	}
-
-	got, err := c.CreateDataset(context.Background(), dt)
-	if err != nil {
-		t.Errorf("Client.CreateDataset() error = %v, wantErr = nil", err)
-		return
-	}
-
-	if got.ProjectID != want.ProjectID || got.DatasetID != want.DatasetID {
-		t.Errorf("Client.CreateDataset() = %v, want = %v",
-			got, want)
-	}
-}
-
-func TestClient_GetTableMetadata(t *testing.T) {
-	tableID := "table-get-metadata"
-	datasetID := "dataset-table-get-metadata"
-	table := types.NewTable(
-		tableID,
-		[]*types.Column{
-			types.NewColumn("id", types.INTEGER),
-			types.NewColumn("name", types.STRING),
-		},
-		types.Data{},
-	)
-	ds := types.NewDataset(datasetID, table)
-
-	client, teardown := mustSetUpTest(t, server.StructSource(types.NewProject(projectID, ds)))
-	defer teardown()
-	c := &Client{
-		Client: client,
-	}
-
 	tests := []struct {
 		name    string
-		tID     string
+		dataset *bqfake.Dataset
 		wantErr bool
-		want    *bigquery.TableMetadata
 	}{
 		{
-			name:    "exists",
-			tID:     tableID,
+			name:    "success",
+			dataset: bqfake.NewDataset(nil, nil, nil),
 			wantErr: false,
-			want: &bigquery.TableMetadata{
-				FullID: projectID + ":" + datasetID + "." + tableID,
-				Schema: bigquery.Schema{
-					&bigquery.FieldSchema{
-						Name: "id",
-						Type: bigquery.IntegerFieldType,
-					},
-					&bigquery.FieldSchema{
-						Name: "name",
-						Type: bigquery.StringFieldType,
-					},
-				},
-			},
 		},
 		{
-			name:    "not-exists",
-			tID:     "nonexistent-table",
+			name:    "error",
+			dataset: bqfake.NewDataset(nil, nil, errors.New("create dataset error")),
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := c.GetTableMetadata(context.Background(), c.Dataset(datasetID), tt.tID)
+			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: tt.dataset})
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{bq}
+
+			got, err := c.CreateDataset(context.Background(), &api.Datatype{Experiment: datasetID})
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Client.GetTableMetadata() error = %v, wantErr = %v", err, tt.wantErr)
+				t.Fatalf("Client.CreateDataset() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr {
 				return
 			}
 
-			if !tt.wantErr && (got.Name != tt.want.Name) {
-				t.Errorf("Client.GetTableMetadata() = %v, want = %v", got, tt.want)
+			if got != tt.dataset {
+				t.Errorf("Client.CreateDataset() = %v, want = %v", got, tt.dataset)
+			}
+		})
+	}
+}
+
+func TestClient_GetTableMetadata(t *testing.T) {
+	tests := []struct {
+		name    string
+		md      *bigquery.TableMetadata
+		wantErr bool
+	}{
+		{
+			name:    "success",
+			md:      &bigquery.TableMetadata{Type: "type"},
+			wantErr: false,
+		},
+		{
+			name:    "no-metadata",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			table := bqfake.NewTable(bqfake.Dataset{}, tableID, tt.md, nil)
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
+			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{bq}
+
+			got, err := c.GetTableMetadata(context.Background(), ds, tableID)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Client.GetTableMetadata() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr {
+				return
+			}
+
+			if got != tt.md {
+				t.Errorf("Client.GetTableMetadata() = %v, want = %v", got, tt.md)
 			}
 		})
 	}
 }
 
 func TestClient_CreateTable(t *testing.T) {
-	tableID := "table-create"
-	datasetID := "dataset-table-create"
-	ds := types.NewDataset(datasetID)
-
-	client, teardown := mustSetUpTest(t, server.StructSource(types.NewProject(projectID, ds)))
-	defer teardown()
-	c := &Client{
-		Client: client,
-	}
-
 	tests := []struct {
 		name    string
 		schema  string
-		dt      *api.Datatype
 		wantErr bool
 	}{
 		{
-			name:   "success",
-			schema: "./testdata/schema.json",
-			dt: &api.Datatype{
-				Name:       tableID,
-				Experiment: datasetID,
-			},
+			name:    "success",
+			schema:  "./testdata/schema.json",
 			wantErr: false,
 		},
 		{
-			name: "error",
-			dt: &api.Datatype{
-				Name:       tableID,
-				Experiment: datasetID,
-			},
+			name:    "invalid-schema",
+			schema:  "./testdata/invalid-schema.json",
+			wantErr: true,
+		},
+		{
+			name:    "no-schema",
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			table := bqfake.NewTable(bqfake.Dataset{}, tableID, &bigquery.TableMetadata{}, nil)
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
+			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{bq}
+
+			dt := &api.Datatype{Name: tableID}
 			if tt.schema != "" {
-				s, err := os.ReadFile(tt.schema)
-				testingx.Must(t, err, "clould not read schema file")
-				tt.dt.Schema = s
+				dt.Schema = testingx.MustReadFile(t, tt.schema)
 			}
 
-			err := c.CreateTable(context.Background(), c.Dataset(datasetID), tt.dt)
+			err = c.CreateTable(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Client.CreateTable() error = %v, wantErr = %v", err, tt.wantErr)
+				t.Fatalf("Client.CreateTable() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 		})
 	}
 }
 
 func TestClient_UpdateSchema(t *testing.T) {
-	tableID := "table-update-schema"
-	datasetID := "dataset-update-schema"
-	table := types.NewTable(
-		tableID,
-		[]*types.Column{
-			types.NewColumn("id", types.INTEGER),
-			types.NewColumn("name", types.STRING),
-		},
-		types.Data{},
-	)
-	ds := types.NewDataset(datasetID, table)
-
-	client, teardown := mustSetUpTest(t, server.StructSource(types.NewProject(projectID, ds)))
-	defer teardown()
-	c := &Client{
-		Client: client,
-	}
-
 	tests := []struct {
 		name    string
 		schema  string
-		dt      *api.Datatype
 		wantErr bool
 	}{
 		{
-			name:   "success",
-			schema: "./testdata/schema.json",
-			dt: &api.Datatype{
-				Name:       tableID,
-				Experiment: datasetID,
-			},
+			name:    "success",
+			schema:  "./testdata/schema.json",
 			wantErr: false,
 		},
 		{
-			name:   "error",
-			schema: "./testdata/invalid-schema.json",
-			dt: &api.Datatype{
-				Name:       tableID,
-				Experiment: datasetID,
-			},
+			name:    "invalid-schema",
+			schema:  "./testdata/invalid-schema.json",
+			wantErr: true,
+		},
+		{
+			name:    "no-schema",
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := os.ReadFile(tt.schema)
-			testingx.Must(t, err, "clould not read schema file")
-			tt.dt.Schema = s
+			table := bqfake.NewTable(bqfake.Dataset{}, tableID, &bigquery.TableMetadata{}, nil)
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
+			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{bq}
 
-			err = c.UpdateSchema(context.Background(), c.Dataset(datasetID), tt.dt)
+			dt := &api.Datatype{
+				Name: tableID,
+			}
+			if tt.schema != "" {
+				dt.Schema = testingx.MustReadFile(t, tt.schema)
+			}
+
+			err = c.UpdateSchema(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("Client.UpdateSchema() error = %v, wantErr = %v", err, tt.wantErr)
+				t.Fatalf("Client.UpdateSchema() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 		})
 	}

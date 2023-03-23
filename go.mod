@@ -5,7 +5,7 @@ go 1.20
 require (
 	cloud.google.com/go/bigquery v1.49.0
 	cloud.google.com/go/storage v1.30.0
-	github.com/m-lab/go v0.1.59
+	github.com/m-lab/go v0.1.61
 	google.golang.org/api v0.114.0
 )
 
@@ -77,6 +77,7 @@ require (
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.2.3 // indirect
 	github.com/googleapis/gax-go/v2 v2.8.0 // indirect
+	github.com/googleapis/google-cloud-go-testing v0.0.0-20210719221736-1c9a4c676720
 	go.opencensus.io v0.24.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/oauth2 v0.6.0 // indirect
