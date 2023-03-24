@@ -150,17 +150,17 @@ func TestClient_GetTableMetadata(t *testing.T) {
 func TestClient_CreateTable(t *testing.T) {
 	tests := []struct {
 		name    string
-		schema  string
+		schema  []byte
 		wantErr bool
 	}{
 		{
 			name:    "success",
-			schema:  "./testdata/schema.json",
+			schema:  testingx.MustReadFile(t, "./testdata/schema.json"),
 			wantErr: false,
 		},
 		{
 			name:    "invalid-schema",
-			schema:  "./testdata/invalid-schema.json",
+			schema:  testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
 			wantErr: true,
 		},
 		{
@@ -177,10 +177,7 @@ func TestClient_CreateTable(t *testing.T) {
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			dt := &api.Datatype{Name: tableID}
-			if tt.schema != "" {
-				dt.Schema = testingx.MustReadFile(t, tt.schema)
-			}
+			dt := &api.Datatype{Name: tableID, Schema: tt.schema}
 
 			err = c.CreateTable(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
@@ -193,17 +190,17 @@ func TestClient_CreateTable(t *testing.T) {
 func TestClient_UpdateSchema(t *testing.T) {
 	tests := []struct {
 		name    string
-		schema  string
+		schema  []byte
 		wantErr bool
 	}{
 		{
 			name:    "success",
-			schema:  "./testdata/schema.json",
+			schema:  testingx.MustReadFile(t, "./testdata/schema.json"),
 			wantErr: false,
 		},
 		{
 			name:    "invalid-schema",
-			schema:  "./testdata/invalid-schema.json",
+			schema:  testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
 			wantErr: true,
 		},
 		{
@@ -220,12 +217,7 @@ func TestClient_UpdateSchema(t *testing.T) {
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			dt := &api.Datatype{
-				Name: tableID,
-			}
-			if tt.schema != "" {
-				dt.Schema = testingx.MustReadFile(t, tt.schema)
-			}
+			dt := &api.Datatype{Name: tableID, Schema: tt.schema}
 
 			err = c.UpdateSchema(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
