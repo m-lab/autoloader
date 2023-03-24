@@ -1,0 +1,20 @@
+language: go
+go:
+- 1.20
+
+before_install:
+- go install -v github.com/mattn/goveralls@latest
+# Install dependencies, including test dependencies.
+- sudo apt-get update
+
+script:
+# Vet the code, build the code, and run all the tests.
+- go vet ./...
+- CGO_ENABLED=0 go build ./...
+- go test -race ./...
+- go test -v -coverprofile=_coverage.cov ./...
+
+after_success:
+# Coveralls
+# Upload coverage information for unit tests.
+- $HOME/gopath/bin/goveralls -coverprofile=_coverage.cov -service=travis-ci
