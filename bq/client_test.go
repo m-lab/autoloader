@@ -281,7 +281,7 @@ func TestClient_Load(t *testing.T) {
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			err = c.Load(context.Background(), ds, tableID, "")
+			err = c.Load(context.Background(), ds, tableID, "gs://fake-bucket/autoload/v1/experiment/datatype/YYYY/MM/DD/*")
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.Load() error = %v, wantErr = %v", err, tt.wantErr)
 			}
