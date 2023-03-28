@@ -46,7 +46,7 @@ func TestClient_GetDataset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bq, err := bqfake.NewClient(context.TODO(), projectID, tt.datasets)
+			bq, err := bqfake.NewClient(context.Background(), projectID, tt.datasets)
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
@@ -86,7 +86,7 @@ func TestClient_CreateDataset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: tt.dataset})
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: tt.dataset})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
@@ -132,7 +132,7 @@ func TestClient_GetTableMetadata(t *testing.T) {
 			}
 			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
-			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
@@ -183,7 +183,7 @@ func TestClient_CreateTable(t *testing.T) {
 			}
 			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
-			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
@@ -246,22 +246,33 @@ func TestClient_Load(t *testing.T) {
 	tests := []struct {
 		name    string
 		loader  *bqfake.Loader
+		uris    []string
 		wantErr bool
 	}{
 		{
 			name:    "success",
-			loader:  bqfake.NewLoader(*bqfake.NewJob(&bigquery.JobStatus{}, nil), nil),
+			loader:  bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, nil), nil),
+			wantErr: false,
+		},
+		{
+			name:   "success-multiple-uris",
+			loader: bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, nil), nil),
+			uris: []string{
+				"gs://fake-bucket/autoload/v1/experiment/datatype/2023/03/26/*",
+				"gs://fake-bucket/autoload/v1/experiment/datatype/2023/03/27/*",
+				"gs://fake-bucket/autoload/v1/experiment/datatype/2023/03/28/*",
+			},
 			wantErr: false,
 		},
 		{
 			name: "loader-err",
-			loader: bqfake.NewLoader(*bqfake.NewJob(&bigquery.JobStatus{}, nil),
+			loader: bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, nil),
 				errors.New("loader err")),
 			wantErr: true,
 		},
 		{
 			name: "job-err",
-			loader: bqfake.NewLoader(*bqfake.NewJob(&bigquery.JobStatus{}, errors.New("job error")),
+			loader: bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, errors.New("job error")),
 				nil),
 			wantErr: true,
 		},
@@ -277,11 +288,12 @@ func TestClient_Load(t *testing.T) {
 			}
 			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
-			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			err = c.Load(context.Background(), ds, tableID, "gs://fake-bucket/autoload/v1/experiment/datatype/YYYY/MM/DD/*")
+			uris := append(tt.uris, "gs://fake-bucket/autoload/v1/experiment/datatype/YYYY/MM/DD/*")
+			err = c.Load(context.Background(), ds, tableID, uris...)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.Load() error = %v, wantErr = %v", err, tt.wantErr)
 			}
