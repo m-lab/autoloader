@@ -125,7 +125,12 @@ func TestClient_GetTableMetadata(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			table := bqfake.NewTable(bqfake.Dataset{}, tableID, tt.md, nil)
+			opts := bqfake.TableOpts{
+				Dataset:  bqfake.Dataset{},
+				Name:     tableID,
+				Metadata: tt.md,
+			}
+			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
 			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
@@ -171,7 +176,12 @@ func TestClient_CreateTable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			table := bqfake.NewTable(bqfake.Dataset{}, tableID, &bigquery.TableMetadata{}, nil)
+			opts := bqfake.TableOpts{
+				Dataset:  bqfake.Dataset{},
+				Name:     tableID,
+				Metadata: &bigquery.TableMetadata{},
+			}
+			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
 			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
@@ -211,7 +221,12 @@ func TestClient_UpdateSchema(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			table := bqfake.NewTable(bqfake.Dataset{}, tableID, &bigquery.TableMetadata{}, nil)
+			opts := bqfake.TableOpts{
+				Dataset:  bqfake.Dataset{},
+				Name:     tableID,
+				Metadata: &bigquery.TableMetadata{},
+			}
+			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
 			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
@@ -222,6 +237,53 @@ func TestClient_UpdateSchema(t *testing.T) {
 			err = c.UpdateSchema(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.UpdateSchema() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestClient_Load(t *testing.T) {
+	tests := []struct {
+		name    string
+		loader  *bqfake.Loader
+		wantErr bool
+	}{
+		{
+			name:    "success",
+			loader:  bqfake.NewLoader(*bqfake.NewJob(&bigquery.JobStatus{}, nil), nil),
+			wantErr: false,
+		},
+		{
+			name: "loader-err",
+			loader: bqfake.NewLoader(*bqfake.NewJob(&bigquery.JobStatus{}, nil),
+				errors.New("loader err")),
+			wantErr: true,
+		},
+		{
+			name: "job-err",
+			loader: bqfake.NewLoader(*bqfake.NewJob(&bigquery.JobStatus{}, errors.New("job error")),
+				nil),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := bqfake.TableOpts{
+				Dataset:  bqfake.Dataset{},
+				Name:     tableID,
+				Metadata: &bigquery.TableMetadata{},
+				Loader:   tt.loader,
+			}
+			table := bqfake.NewTable(opts)
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
+			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{bq}
+
+			err = c.Load(context.Background(), ds, tableID, "")
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Client.Load() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 		})
 	}
