@@ -5,7 +5,7 @@ go 1.20
 require (
 	cloud.google.com/go/bigquery v1.49.0
 	cloud.google.com/go/storage v1.30.0
-	github.com/m-lab/go v0.1.63-0.20230328171438-e81762c3043e
+	github.com/m-lab/go v0.1.63
 	google.golang.org/api v0.114.0
 )
 
