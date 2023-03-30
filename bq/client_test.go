@@ -176,7 +176,7 @@ func TestClient_CreateTable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			md := &bigquery.TableMetadata{}
+			md := &bigquery.TableMetadata{Type: "OLD_TYPE"}
 			opts := bqfake.TableOpts{
 				Dataset:  bqfake.Dataset{},
 				Name:     tableID,
