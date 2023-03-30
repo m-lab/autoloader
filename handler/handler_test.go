@@ -98,17 +98,54 @@ func TestClient_Load(t *testing.T) {
 		name    string
 		storage *fakeStorage
 		bq      *fakeBQ
+		opts    string
 		want    int
 	}{
 		{
 			name: "success",
+			storage: &fakeStorage{
+				datatypes: []*api.Datatype{{
+					Name: "datatype",
+				}},
+				dirs: map[string][]gcs.Dir{
+					"datatype": {{
+						Path: "fake-dir-path",
+					}},
+				},
+			},
+			bq:   &fakeBQ{},
+			opts: "period=day",
+			want: http.StatusOK,
+		},
+		{
+			name:    "invalid-opts",
+			storage: &fakeStorage{},
+			bq:      &fakeBQ{},
+			opts:    "period=invalid",
+			want:    http.StatusBadRequest,
+		},
+		{
+			name: "processing-error",
+			storage: &fakeStorage{
+				datatypes: []*api.Datatype{{
+					Name: "datatype",
+				}},
+				dirs: map[string][]gcs.Dir{
+					"datatype": {{
+						Path: "fake-dir-path",
+					}},
+				},
+			},
+			bq:   &fakeBQ{loadErr: errors.New("failed to load data")},
+			opts: "period=day",
+			want: http.StatusInternalServerError,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewClient(tt.storage, tt.bq)
 			srv := httptest.NewServer(http.HandlerFunc(c.Load))
-			resp, err := http.Get(srv.URL)
+			resp, err := http.Get(srv.URL + "?" + tt.opts)
 			testingx.Must(t, err, "failed to get test request")
 
 			if resp.StatusCode != tt.want {
