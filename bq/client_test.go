@@ -165,6 +165,7 @@ func TestClient_CreateTable(t *testing.T) {
 		},
 		{
 			name:    "invalid-schema",
+			schema:  testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
 			wantErr: true,
 		},
 		{
@@ -175,11 +176,10 @@ func TestClient_CreateTable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			md := &bigquery.TableMetadata{}
 			opts := bqfake.TableOpts{
 				Dataset:  bqfake.Dataset{},
 				Name:     tableID,
-				Metadata: md,
+				Metadata: &bigquery.TableMetadata{},
 			}
 			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
@@ -189,19 +189,9 @@ func TestClient_CreateTable(t *testing.T) {
 
 			dt := &api.Datatype{Name: tableID, Schema: tt.schema}
 
-			got, err := c.CreateTable(context.Background(), ds, dt)
+			err = c.CreateTable(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.CreateTable() error = %v, wantErr = %v", err, tt.wantErr)
-			}
-
-			if tt.wantErr {
-				return
-			}
-
-			// The bqfake package sets the Type field on table creation.
-			md.Type = "TABLE"
-			if got != md {
-				t.Errorf("Client.CreateTable() = %v, want = %v", got, md)
 			}
 		})
 	}

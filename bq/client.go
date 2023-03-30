@@ -49,11 +49,11 @@ func (c *Client) GetTableMetadata(ctx context.Context, ds bqiface.Dataset, name 
 }
 
 // CreateTable creates a new date-partitioned table for the input `api.Datatype`.
-// It returns the table's metadata and an error if the table already exists.
-func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype) (*bigquery.TableMetadata, error) {
+// It returns an error if the table already exists.
+func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype) error {
 	bqSchema, err := bigquery.SchemaFromJSON(dt.Schema)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	t := ds.Table(dt.Name)
@@ -66,7 +66,7 @@ func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Da
 			RequirePartitionFilter: true,
 		},
 	})
-	return t.Metadata(ctx)
+	return err
 }
 
 // UpdateSchema updates the schema for the input `api.Datatype` table.
