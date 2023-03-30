@@ -165,6 +165,7 @@ func TestClient_CreateTable(t *testing.T) {
 		},
 		{
 			name:    "invalid-schema",
+			schema:  testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
 			wantErr: true,
 		},
 		{
