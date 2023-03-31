@@ -3,6 +3,8 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -114,7 +116,7 @@ func TestClient_Load(t *testing.T) {
 				},
 			},
 			bq:   &fakeBQ{},
-			opts: "period=day",
+			opts: "period=daily",
 			want: http.StatusOK,
 		},
 		{
@@ -137,7 +139,7 @@ func TestClient_Load(t *testing.T) {
 				},
 			},
 			bq:   &fakeBQ{loadErr: errors.New("failed to load data")},
-			opts: "period=day",
+			opts: "period=daily",
 			want: http.StatusInternalServerError,
 		},
 	}
@@ -151,6 +153,9 @@ func TestClient_Load(t *testing.T) {
 			if resp.StatusCode != tt.want {
 				t.Errorf("Handler.Load() status = %d, want %d", resp.StatusCode, tt.want)
 			}
+
+			bodyBytes, err := io.ReadAll(resp.Body)
+			fmt.Println(string(bodyBytes))
 		})
 	}
 }
@@ -289,7 +294,7 @@ func TestClient_processDatatype(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewClient(tt.storage, tt.bq)
 
-			if err := c.processDatatype(context.Background(), tt.dt, periodOpts("all")); (err != nil) != tt.wantErr {
+			if err := c.processDatatype(context.Background(), tt.dt, periodOpts("annually")); (err != nil) != tt.wantErr {
 				t.Errorf("Client.processDatatype() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 
@@ -369,7 +374,7 @@ func TestClient_load(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewClient(tt.storage, tt.bq)
 
-			if err := c.load(context.Background(), nil, tt.dt, periodOpts("all")); (err != nil) != tt.wantErr {
+			if err := c.load(context.Background(), nil, tt.dt, periodOpts("annually")); (err != nil) != tt.wantErr {
 				t.Errorf("Client.load() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 

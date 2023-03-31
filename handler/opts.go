@@ -10,9 +10,10 @@ import (
 
 // LoadOptions allows clients to specify parameters modifying how
 // the data is loaded.
+// The `start` field is inclusive and the `end` field is exclusive.
 type LoadOptions struct {
-	start string
-	end   string
+	start string // inclusive.
+	end   string // exclusive.
 }
 
 const (
@@ -54,13 +55,13 @@ func periodOpts(p string) *LoadOptions {
 	month := now.AddDate(0, -1, 0).Format(timex.YYYYMMDDWithSlash)
 
 	switch p {
-	case "day":
+	case "daily":
 		return &LoadOptions{yesterday, tomorrow}
-	case "month":
+	case "monthly":
 		return &LoadOptions{month, yesterday}
-	case "all":
+	case "annually":
 		return &LoadOptions{start, month}
-	case "new":
+	case "everything":
 		return &LoadOptions{start, tomorrow}
 	}
 

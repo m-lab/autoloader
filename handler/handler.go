@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
@@ -53,15 +55,17 @@ func (c *Client) Load(w http.ResponseWriter, r *http.Request) {
 
 	ctx := r.Context()
 	datatypes := c.GetDatatypes(ctx)
+	errs := []string{}
 	for _, dt := range datatypes {
-		e := c.processDatatype(ctx, dt, opts)
-		if e != nil {
-			err = e
+		err := c.processDatatype(ctx, dt, opts)
+		if err != nil {
+			errs = append(errs, fmt.Sprintf("failed to autoload %s.%s: %s", dt.Experiment, dt.Name, err.Error()))
 		}
 	}
 
-	if err != nil {
+	if len(errs) != 0 {
 		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(strings.Join(errs, "\n")))
 		return
 	}
 
@@ -87,7 +91,9 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 			log.Printf("failed to create BigQuery table %s.%s: %v", dt.Experiment, dt.Name, err)
 			return err
 		}
-		opts = periodOpts("new")
+		// Since a new table was created, override the given optionss and default to options
+		// of complete history.
+		opts = periodOpts("everything")
 	}
 
 	// Update table (if necessary).

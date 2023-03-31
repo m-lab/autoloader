@@ -33,8 +33,8 @@ func Test_getOpts(t *testing.T) {
 		},
 		{
 			name:    "success-period",
-			values:  url.Values{"period": {"day"}},
-			want:    periodOpts("day"),
+			values:  url.Values{"period": {"daily"}},
+			want:    periodOpts("daily"),
 			wantErr: false,
 		},
 		{
@@ -72,32 +72,32 @@ func Test_periodOpts(t *testing.T) {
 		want *LoadOptions
 	}{
 		{
-			name: "day",
-			p:    "day",
+			name: "daily",
+			p:    "daily",
 			want: &LoadOptions{
 				now.AddDate(0, 0, -1).Format(timex.YYYYMMDDWithSlash),
 				now.AddDate(0, 0, 1).Format(timex.YYYYMMDDWithSlash),
 			},
 		},
 		{
-			name: "month",
-			p:    "month",
+			name: "monthly",
+			p:    "monthly",
 			want: &LoadOptions{
 				now.AddDate(0, -1, 0).Format(timex.YYYYMMDDWithSlash),
 				now.AddDate(0, 0, -1).Format(timex.YYYYMMDDWithSlash),
 			},
 		},
 		{
-			name: "all",
-			p:    "all",
+			name: "annually",
+			p:    "annually",
 			want: &LoadOptions{
 				start,
 				now.AddDate(0, -1, 0).Format(timex.YYYYMMDDWithSlash),
 			},
 		},
 		{
-			name: "new",
-			p:    "new",
+			name: "everything",
+			p:    "everything",
 			want: &LoadOptions{
 				start,
 				now.AddDate(0, 0, 1).Format(timex.YYYYMMDDWithSlash),
