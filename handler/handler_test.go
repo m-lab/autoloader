@@ -3,8 +3,6 @@ package handler
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -153,9 +151,6 @@ func TestClient_Load(t *testing.T) {
 			if resp.StatusCode != tt.want {
 				t.Errorf("Handler.Load() status = %d, want %d", resp.StatusCode, tt.want)
 			}
-
-			bodyBytes, err := io.ReadAll(resp.Body)
-			fmt.Println(string(bodyBytes))
 		})
 	}
 }
