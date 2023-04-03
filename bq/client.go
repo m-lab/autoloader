@@ -61,7 +61,7 @@ func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Da
 		Name:   dt.Name,
 		Schema: bqSchema,
 		TimePartitioning: &bigquery.TimePartitioning{
-			Type:                   "DAY",
+			Type:                   bigquery.DayPartitioningType,
 			Field:                  "date",
 			RequirePartitionFilter: true,
 		},
@@ -89,11 +89,14 @@ func (c *Client) UpdateSchema(ctx context.Context, ds bqiface.Dataset, dt *api.D
 func (c *Client) Load(ctx context.Context, ds bqiface.Dataset, name string, uri ...string) error {
 	gcsRef := bigquery.NewGCSReference(uri...)
 	gcsRef.SourceFormat = bigquery.JSON
-	loader := ds.Table(name).LoaderFrom(gcsRef)
+	tbl := ds.Table(name)
+	loader := tbl.LoaderFrom(gcsRef)
 	loader.SetLoadConfig(bqiface.LoadConfig{
 		LoadConfig: bigquery.LoadConfig{
+			Src:              gcsRef,
 			WriteDisposition: bigquery.WriteTruncate,
 		},
+		Dst: tbl,
 	})
 
 	job, err := loader.Run(ctx)
