@@ -22,7 +22,7 @@ const (
 
 var (
 	errDate   = errors.New("invalid date format (want YYYY/MM/DD)")
-	errPeriod = errors.New("invalid or missing period (want 'daily', 'monthly', 'annually', or 'everything'")
+	errPeriod = errors.New("invalid or missing period (want 'daily', 'monthly', 'annually', or 'everything')")
 )
 
 func getOpts(values url.Values) (*LoadOptions, error) {
