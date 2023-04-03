@@ -12,6 +12,12 @@ var (
 		prometheus.HistogramOpts{
 			Name: "autoloader_duration",
 			Help: "A histogram of autoload latency for each datatype.",
+			Buckets: []float64{
+				10, 21.5, 46.4,
+				100, 215, 464,
+				1000, 2150, 4640,
+				10000, 21500, 46400,
+			},
 		},
 		[]string{"experiment", "datatype", "status"},
 	)
