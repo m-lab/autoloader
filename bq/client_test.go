@@ -156,12 +156,21 @@ func TestClient_CreateTable(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  []byte
+		mdType  bigquery.TableType
 		wantErr bool
 	}{
 		{
 			name:    "success",
 			schema:  testingx.MustReadFile(t, "./testdata/schema.json"),
 			wantErr: false,
+		},
+		{
+			// TableMetadata.Type != "" indicates the table has been created.
+			// If the TYPE is already set, bqfake.Table.Create() returns an error.
+			name:    "create-error",
+			schema:  testingx.MustReadFile(t, "./testdata/schema.json"),
+			mdType:  "TYPE",
+			wantErr: true,
 		},
 		{
 			name:    "invalid-schema",
@@ -176,7 +185,7 @@ func TestClient_CreateTable(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			md := &bigquery.TableMetadata{Type: "OLD_TYPE"}
+			md := &bigquery.TableMetadata{Type: tt.mdType}
 			opts := bqfake.TableOpts{
 				Dataset:  bqfake.Dataset{},
 				Name:     tableID,
