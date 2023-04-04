@@ -57,6 +57,32 @@ func TestClient_GetDatatypes(t *testing.T) {
 			},
 		},
 		{
+			name: "success-mlab",
+			objs: []fakestorage.Object{
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: "archive-mlab-sandbox",
+						Name:       path.Join(prefix, "tables/experiment1/datatype1"),
+						Updated:    updated,
+					},
+					Content: testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
+				},
+			},
+			names: []string{"archive-mlab-sandbox"},
+			want: []*api.Datatype{
+				{
+					Name:        "datatype1",
+					Experiment:  "raw_experiment1",
+					Location:    "US",
+					Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
+					UpdatedTime: updated,
+					Bucket: &storagex.Bucket{
+						BucketHandle: &storage.BucketHandle{},
+					},
+				},
+			},
+		},
+		{
 			name: "invalid-schema-file",
 			objs: []fakestorage.Object{
 				{
