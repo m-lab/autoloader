@@ -14,11 +14,13 @@ import (
 	"github.com/m-lab/autoloader/api"
 	"github.com/m-lab/go/storagex"
 	"github.com/m-lab/go/timex"
+	"golang.org/x/exp/slices"
 	"google.golang.org/api/iterator"
 )
 
 var (
-	suffix = regexp.MustCompile(`(\d{4}/[01]\d/[0123]\d)/$`)
+	suffix      = regexp.MustCompile(`(\d{4}/[01]\d/[0123]\d)/$`)
+	mlabBuckets = []string{"archive-mlab-sandbox", "archive-mlab-staging", "archive-mlab-oti"}
 )
 
 const (
@@ -74,10 +76,14 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 			}
 
 			dir, filename := path.Split(o.Name)
+			exp := path.Base(dir)
+			if slices.Contains(mlabBuckets, attrs.Name) {
+				exp = "raw_" + exp
+			}
 
 			s := &api.Datatype{
 				Name:        strings.TrimSuffix(filename, schemaFileSuffix),
-				Experiment:  path.Base(dir),
+				Experiment:  exp,
 				Location:    attrs.Location,
 				Schema:      file,
 				UpdatedTime: o.ObjectAttrs.Updated,
