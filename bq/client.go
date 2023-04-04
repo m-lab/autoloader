@@ -66,6 +66,9 @@ func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Da
 			RequirePartitionFilter: true,
 		},
 	})
+	if err != nil {
+		return nil, err
+	}
 	return t.Metadata(ctx)
 }
 
