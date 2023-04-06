@@ -4,6 +4,7 @@ options:
   env:
   - PROJECT_ID=$PROJECT_ID
 
+steps:
 - name: gcr.io/cloud-builders/docker
   id: "Build the autoloader docker image"
   args: [
