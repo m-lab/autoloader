@@ -25,10 +25,11 @@ func TestClient_GetDatatypes(t *testing.T) {
 	updated := time.Date(02, 02, 2023, 3, 15, 0, 0, time.UTC)
 
 	tests := []struct {
-		name  string
-		objs  []fakestorage.Object
-		names []string
-		want  []*api.Datatype
+		name       string
+		objs       []fakestorage.Object
+		names      []string
+		mlabBucket string
+		want       []*api.Datatype
 	}{
 		{
 			name: "success",
@@ -49,6 +50,51 @@ func TestClient_GetDatatypes(t *testing.T) {
 					Experiment:  "experiment1",
 					Location:    "US",
 					Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
+					UpdatedTime: updated,
+					Bucket: &storagex.Bucket{
+						BucketHandle: &storage.BucketHandle{},
+					},
+				},
+			},
+		},
+		{
+			name: "success-with-mlab-bucket",
+			objs: []fakestorage.Object{
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: "archive-mlab-sandbox",
+						Name:       path.Join(prefix, "tables/experiment1/datatype1"),
+						Updated:    updated,
+					},
+					Content: testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
+				},
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: "archive-non-mlab",
+						Name:       path.Join(prefix, "tables/experiment2/datatype2"),
+						Updated:    updated,
+					},
+					Content: testingx.MustReadFile(t, "testdata/experiment2/datatype2.table.json"),
+				},
+			},
+			names:      []string{"archive-mlab-sandbox", "archive-non-mlab"},
+			mlabBucket: "archive-mlab-sandbox",
+			want: []*api.Datatype{
+				{
+					Name:        "datatype1",
+					Experiment:  "raw_experiment1",
+					Location:    "US",
+					Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
+					UpdatedTime: updated,
+					Bucket: &storagex.Bucket{
+						BucketHandle: &storage.BucketHandle{},
+					},
+				},
+				{
+					Name:        "datatype2",
+					Experiment:  "experiment2",
+					Location:    "US",
+					Schema:      testingx.MustReadFile(t, "testdata/experiment2/datatype2.table.json"),
 					UpdatedTime: updated,
 					Bucket: &storagex.Bucket{
 						BucketHandle: &storage.BucketHandle{},
@@ -79,7 +125,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			})
 			testingx.Must(t, err, "error initializing GCS server")
 			defer server.Stop()
-			c := NewClient(server.Client(), tt.names)
+			c := NewClient(server.Client(), tt.names, tt.mlabBucket)
 
 			got := c.GetDatatypes(context.TODO())
 			if !cmp.Equal(got, tt.want, cmpopts.IgnoreUnexported(storagex.Bucket{}, storage.BucketHandle{})) {
