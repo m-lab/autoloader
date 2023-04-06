@@ -14,13 +14,11 @@ import (
 	"github.com/m-lab/autoloader/api"
 	"github.com/m-lab/go/storagex"
 	"github.com/m-lab/go/timex"
-	"golang.org/x/exp/slices"
 	"google.golang.org/api/iterator"
 )
 
 var (
-	suffix      = regexp.MustCompile(`(\d{4}/[01]\d/[0123]\d)/$`)
-	mlabBuckets = []string{"archive-mlab-sandbox", "archive-mlab-staging", "archive-mlab-oti"}
+	suffix = regexp.MustCompile(`(\d{4}/[01]\d/[0123]\d)/$`)
 )
 
 const (
@@ -30,7 +28,8 @@ const (
 
 // Client is used to interact with Google Cloud Storage.
 type Client struct {
-	Buckets []*storagex.Bucket
+	Buckets    []*storagex.Bucket
+	mlabBucket string
 }
 
 // Dir represents a GCS directory.
@@ -45,7 +44,7 @@ type StorageReader interface {
 }
 
 // NewClient returns a new Client for the specified bucket names.
-func NewClient(c *storage.Client, names []string) *Client {
+func NewClient(c *storage.Client, names []string, mlabBucket string) *Client {
 	buckets := make([]*storagex.Bucket, 0)
 	for _, name := range names {
 		bh := c.Bucket(name)
@@ -53,7 +52,8 @@ func NewClient(c *storage.Client, names []string) *Client {
 	}
 
 	return &Client{
-		Buckets: buckets,
+		Buckets:    buckets,
+		mlabBucket: mlabBucket,
 	}
 }
 
@@ -77,7 +77,7 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 
 			dir, filename := path.Split(o.Name)
 			exp := path.Base(dir)
-			if slices.Contains(mlabBuckets, attrs.Name) {
+			if attrs.Name == c.mlabBucket {
 				exp = "raw_" + exp
 			}
 
