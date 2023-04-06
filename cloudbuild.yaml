@@ -19,7 +19,7 @@ steps:
     "push", "gcr.io/$PROJECT_ID/autoloader:${COMMIT_SHA}",
   ]
 
--name: gcr.io/cloud-builders/kubectl
+- name: gcr.io/cloud-builders/kubectl
   id: "Deploy the autoloader"
   entrypoint: /bin/bash
   args:
