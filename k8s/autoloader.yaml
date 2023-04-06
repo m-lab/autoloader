@@ -31,9 +31,9 @@ spec:
         image: gcr.io/{{PROJECT_ID}}/autoloader:{{COMMIT_SHA}}
         args:
         - -listenaddr=:8080
-        - -project:={{PROJECT_ID}}
-        - -mlab-bucket:={{MLAB_BUCKET}}
-        - -buckets:={{BUCKETS}}
+        - -project={{PROJECT_ID}}
+        - -mlab-bucket={{MLAB_BUCKET}}
+        - -buckets={{BUCKETS}}
         ports:
         - containerPort: 8080
       nodeSelector:
