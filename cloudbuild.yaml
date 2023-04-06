@@ -27,8 +27,8 @@ steps:
   - |-
     sed -i -e 's/{{COMMIT_SHA}}/'${COMMIT_SHA}'/g' \
            -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/g' \
-           -e 's/{{MLAB_BUCKET}}'$_MLAB_BUCKET'/g' \
-           -e 's/{{BUCKETS}}'$_BUCKETS'/g' \
+           -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/g' \
+           -e 's/{{BUCKETS}}/'$_BUCKETS'/g' \
            k8s/autoloader.yaml
     /builder/kubectl.bash apply -f k8s/autoloader.yaml
   env:
