@@ -28,7 +28,8 @@ const (
 
 // Client is used to interact with Google Cloud Storage.
 type Client struct {
-	Buckets []*storagex.Bucket
+	Buckets    []*storagex.Bucket
+	mlabBucket string
 }
 
 // Dir represents a GCS directory.
@@ -43,7 +44,7 @@ type StorageReader interface {
 }
 
 // NewClient returns a new Client for the specified bucket names.
-func NewClient(c *storage.Client, names []string) *Client {
+func NewClient(c *storage.Client, names []string, mlabBucket string) *Client {
 	buckets := make([]*storagex.Bucket, 0)
 	for _, name := range names {
 		bh := c.Bucket(name)
@@ -51,7 +52,8 @@ func NewClient(c *storage.Client, names []string) *Client {
 	}
 
 	return &Client{
-		Buckets: buckets,
+		Buckets:    buckets,
+		mlabBucket: mlabBucket,
 	}
 }
 
@@ -74,10 +76,14 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 			}
 
 			dir, filename := path.Split(o.Name)
+			exp := path.Base(dir)
+			if attrs.Name == c.mlabBucket {
+				exp = "raw_" + exp
+			}
 
 			s := &api.Datatype{
 				Name:        strings.TrimSuffix(filename, schemaFileSuffix),
-				Experiment:  path.Base(dir),
+				Experiment:  exp,
 				Location:    attrs.Location,
 				Schema:      file,
 				UpdatedTime: o.ObjectAttrs.Updated,

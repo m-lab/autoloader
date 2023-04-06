@@ -18,6 +18,7 @@ import (
 var (
 	listenAddr          string
 	project             string
+	mlabBucket          string
 	bucketNames         flagx.StringArray
 	mainCtx, mainCancel = context.WithCancel(context.Background())
 )
@@ -25,6 +26,7 @@ var (
 func init() {
 	flag.StringVar(&listenAddr, "listenaddr", ":8080", "Address to listen on")
 	flag.StringVar(&project, "project", "mlab-sandbox", "BigQuery project environment variable")
+	flag.StringVar(&mlabBucket, "mlab-bucket", "", "Archive bucket name containing data from M-Lab's platform")
 	flag.Var(&bucketNames, "buckets", "Archive bucket names in Google Cloud Storage")
 }
 
@@ -39,7 +41,7 @@ func main() {
 	storage, err := storage.NewClient(mainCtx)
 	rtx.Must(err, "Failed to create storage client")
 	defer storage.Close()
-	gcs := gcs.NewClient(storage, bucketNames)
+	gcs := gcs.NewClient(storage, bucketNames, mlabBucket)
 
 	bigquery, err := bigquery.NewClient(mainCtx, project)
 	rtx.Must(err, "Failed to create BigQuery client")
