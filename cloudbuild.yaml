@@ -41,15 +41,14 @@ steps:
   args:
   - -c
   - |-
-    sed -e 's/{{FREQUENCY}}/'$_FREQUENCY'/' \
+    sed -e 's/{{FREQUENCY}}/hourly/' \
         -e 's/{{CRON_SCHEDULE}}/0 *\/3 * * */' \
         -e 's/{{LOAD_PERIOD}}/daily/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-$_FREQUENCY-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-$_FREQUENCY-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-hourly-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-hourly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
-  - _FREQUENCY=hourly
 
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy weekly job"
@@ -57,15 +56,14 @@ steps:
   args:
   - -c
   - |-
-    sed -e 's/{{FREQUENCY}}/'$_FREQUENCY'/' \
+    sed -e 's/{{FREQUENCY}}/weekly/' \
         -e 's/{{CRON_SCHEDULE}}/0 0 * * 0/' \
         -e 's/{{LOAD_PERIOD}}/monthly/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-$_FREQUENCY-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-$_FREQUENCY-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-weekly-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-weekly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
-  - _FREQUENCY=weekly
 
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy monthly job"
@@ -73,12 +71,11 @@ steps:
   args:
   - -c
   - |-
-    sed -e 's/{{FREQUENCY}}/'$_FREQUENCY'/' \
+    sed -e 's/{{FREQUENCY}}/monthly/' \
         -e 's/{{CRON_SCHEDULE}}/0 0 1 * */' \
         -e 's/{{LOAD_PERIOD}}/annually/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-$_FREQUENCY-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-$_FREQUENCY-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-monthly-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-monthly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
-  - _FREQUENCY=monthly
