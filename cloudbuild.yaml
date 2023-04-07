@@ -38,6 +38,7 @@ steps:
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy daily cronjob"
   entrypoint: /bin/bash
+  args:
   - -c
   - |-
     sed -i -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/0 */3 * * */' \
