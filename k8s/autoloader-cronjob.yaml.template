@@ -16,4 +16,4 @@ spec:
             image: busybox
             args:
             - wget
-            - http://annotation-service:8080/v1/load?period={{LOAD_PERIOD}}
+            - http://autoloader-service:8080/v1/load?period={{LOAD_PERIOD}}
