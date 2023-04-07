@@ -41,11 +41,11 @@ steps:
   args:
   - -c
   - |-
-    sed -e 's/{{FREQUENCY}}/'${_FREQUENCY}'/' \
+    sed -e 's/{{FREQUENCY}}/'$_FREQUENCY'/' \
         -e 's/{{CRON_SCHEDULE}}/0 *\/3 * * */' \
         -e 's/{{LOAD_PERIOD}}/daily/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-${_FREQUENCY}-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-${_FREQUENCY}-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-$_FREQUENCY-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-$_FREQUENCY-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
@@ -57,11 +57,11 @@ steps:
   args:
   - -c
   - |-
-    sed -e 's/{{FREQUENCY}}/'${_FREQUENCY}'/' \
+    sed -e 's/{{FREQUENCY}}/'$_FREQUENCY'/' \
         -e 's/{{CRON_SCHEDULE}}/0 0 * * 0/' \
         -e 's/{{LOAD_PERIOD}}/monthly/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-${_FREQUENCY}-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-${_FREQUENCY}-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-$_FREQUENCY-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-$_FREQUENCY-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
@@ -73,11 +73,11 @@ steps:
   args:
   - -c
   - |-
-    sed -e 's/{{FREQUENCY}}/'${_FREQUENCY}'/' \
+    sed -e 's/{{FREQUENCY}}/'$_FREQUENCY'/' \
         -e 's/{{CRON_SCHEDULE}}/0 0 1 * */' \
         -e 's/{{LOAD_PERIOD}}/annually/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-${_FREQUENCY}-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-${_FREQUENCY}-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-$_FREQUENCY-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-$_FREQUENCY-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
