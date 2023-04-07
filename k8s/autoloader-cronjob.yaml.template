@@ -3,7 +3,7 @@ kind: CronJob
 metadata:
   name: autoloader-cronjob
 spec:
-  schedule: "{{AUTOLOADER_CRON_SCHEDULE}}"
+  schedule: {{AUTOLOADER_CRON_SCHEDULE}}
   concurrencyPolicy: Forbid
   jobTemplate:
     spec:
@@ -15,4 +15,4 @@ spec:
             image: busybox
             args:
             - wget
-            - http://annotation-service:8080/v1/load?period={{AUTOLOAD_PERIOD}}
+            - http://annotation-service:8080/v1/load?period={{LOAD_PERIOD}}

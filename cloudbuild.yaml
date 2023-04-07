@@ -41,9 +41,9 @@ steps:
   args:
   - -c
   - |-
-    sed -i -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/0 *\/3 * * */' \
-           -e 's/{{AUTOLOAD_PERIOD}}/daily/' \
-           k8s/autoloader-cronjob-template.yaml > autoloader-daily-cronjob.yaml
+    sed -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/0 *\/3 * * */' \
+        -e 's/{{LOAD_PERIOD}}/daily/' \
+        k8s/autoloader-cronjob.yaml.template > autoloader-daily-cronjob.yaml
     /builder/kubectl.bash apply -f autoloader-daily-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
