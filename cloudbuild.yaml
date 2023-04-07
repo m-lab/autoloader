@@ -41,7 +41,7 @@ steps:
   args:
   - -c
   - |-
-    sed -i -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/"0 */3 * * *"/' \
+    sed -i -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/'0 */3 * * *'/' \
            -e 's/{{AUTOLOAD_PERIOD}}/daily/' \
            k8s/autoloader-cronjob-template.yaml > autoloader-daily-cronjob.yaml
     /builder/kubectl.bash apply -f autoloader-daily-cronjob.yaml
