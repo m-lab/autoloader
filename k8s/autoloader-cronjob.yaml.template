@@ -10,9 +10,10 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          backoffLimit: 0
           containers:
           - name: busybox
             image: busybox
             args:
             - wget
-            - http://annotation-service:8080/v1/load?period={{LOAD_PERIOD}}
+            - http://annotation-service:$(AUTOLOADER_SERVICE_PORT_8080_TCP_PORT)/v1/load?period={{LOAD_PERIOD}}
