@@ -177,7 +177,29 @@ func TestClient_processDatatype(t *testing.T) {
 			},
 			bq: &fakeBQ{},
 			dt: &api.Datatype{
-				Name: "datatype",
+				Name:       "datatype",
+				Experiment: "dataset",
+				Dataset:    "dataset",
+			},
+			wantCreate: 2,
+			wantUpdate: 0,
+			wantLoad:   1,
+			wantErr:    false,
+		},
+		{
+			name: "success-mlab-dataset",
+			storage: &fakeStorage{
+				dirs: map[string][]gcs.Dir{
+					"datatype": {{
+						Path: "fake-dir-path",
+					}},
+				},
+			},
+			bq: &fakeBQ{},
+			dt: &api.Datatype{
+				Name:       "datatype",
+				Experiment: "dataset",
+				Dataset:    "raw_dataset",
 			},
 			wantCreate: 2,
 			wantUpdate: 0,
@@ -198,6 +220,7 @@ func TestClient_processDatatype(t *testing.T) {
 			dt: &api.Datatype{
 				Name:       "datatype",
 				Experiment: "dataset",
+				Dataset:    "dataset",
 			},
 			wantCreate: 0,
 			wantUpdate: 0,
@@ -222,6 +245,7 @@ func TestClient_processDatatype(t *testing.T) {
 			dt: &api.Datatype{
 				Name:        "datatype",
 				Experiment:  "dataset",
+				Dataset:     "dataset",
 				UpdatedTime: time.Now().Add(-time.Hour),
 			},
 			wantCreate: 0,
@@ -276,6 +300,7 @@ func TestClient_processDatatype(t *testing.T) {
 			dt: &api.Datatype{
 				Name:        "datatype",
 				Experiment:  "dataset",
+				Dataset:     "dataset",
 				UpdatedTime: time.Now().Add(-time.Hour),
 			},
 			wantCreate: 0,

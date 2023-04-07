@@ -77,13 +77,15 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 
 			dir, filename := path.Split(o.Name)
 			exp := path.Base(dir)
+			ds := exp
 			if attrs.Name == c.mlabBucket {
-				exp = "raw_" + exp
+				ds = "raw_" + ds
 			}
 
 			s := &api.Datatype{
 				Name:        strings.TrimSuffix(filename, schemaFileSuffix),
 				Experiment:  exp,
+				Dataset:     ds,
 				Location:    attrs.Location,
 				Schema:      file,
 				UpdatedTime: o.ObjectAttrs.Updated,

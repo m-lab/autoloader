@@ -64,7 +64,7 @@ func (c *Client) Load(w http.ResponseWriter, r *http.Request) {
 		err := c.processDatatype(ctx, dt, opts)
 		if err != nil {
 			metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, "error").Observe(time.Since(t).Seconds())
-			errs = append(errs, fmt.Sprintf("failed to autoload %s.%s: %s", dt.Experiment, dt.Name, err.Error()))
+			errs = append(errs, fmt.Sprintf("failed to autoload %s.%s: %s", dt.Dataset, dt.Name, err.Error()))
 			continue
 		}
 		metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, "OK").Observe(time.Since(t).Seconds())
@@ -81,11 +81,11 @@ func (c *Client) Load(w http.ResponseWriter, r *http.Request) {
 
 func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *LoadOptions) error {
 	// Get or create dataset.
-	ds, err := c.BQClient.GetDataset(ctx, dt.Experiment)
+	ds, err := c.BQClient.GetDataset(ctx, dt.Dataset)
 	if err != nil {
 		ds, err = c.BQClient.CreateDataset(ctx, dt)
 		if err != nil {
-			log.Printf("failed to create BigQuery dataset %s: %v", dt.Experiment, err)
+			log.Printf("failed to create BigQuery dataset %s: %v", dt.Dataset, err)
 			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-dataset", "error")
 			return err
 		}
@@ -97,7 +97,7 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 	if err != nil {
 		md, err = c.BQClient.CreateTable(ctx, ds, dt)
 		if err != nil {
-			log.Printf("failed to create BigQuery table %s.%s: %v", dt.Experiment, dt.Name, err)
+			log.Printf("failed to create BigQuery table %s.%s: %v", dt.Dataset, dt.Name, err)
 			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-table", "error")
 			return err
 		}
@@ -111,7 +111,7 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 	if dt.UpdatedTime.After(md.LastModifiedTime) {
 		err = c.BQClient.UpdateSchema(ctx, ds, dt)
 		if err != nil {
-			log.Printf("failed to update BigQuery table %s.%s: %v", dt.Experiment, dt.Name, err)
+			log.Printf("failed to update BigQuery table %s.%s: %v", dt.Dataset, dt.Name, err)
 			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "update-schema", "error")
 			return err
 		}
@@ -139,7 +139,7 @@ func (c *Client) load(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype,
 
 	t := time.Now()
 	log.Printf("started loading data to BigQuery table %s.%s for dates %s to %s",
-		dt.Experiment, dt.Name, opts.start, opts.end)
+		dt.Dataset, dt.Name, opts.start, opts.end)
 
 	for _, dir := range dirs {
 		table := dt.Name + "$" + dir.Date.Format(timex.YYYYMMDD)
@@ -151,7 +151,7 @@ func (c *Client) load(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype,
 	}
 
 	log.Printf("finished loading data to BigQuery table %s.%s for dates %s to %s, duration: %s",
-		dt.Experiment, dt.Name, opts.start, opts.end, time.Since(t))
+		dt.Dataset, dt.Name, opts.start, opts.end, time.Since(t))
 
 	return err
 }

@@ -90,7 +90,7 @@ func TestClient_CreateDataset(t *testing.T) {
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			got, err := c.CreateDataset(context.Background(), &api.Datatype{Experiment: datasetID})
+			got, err := c.CreateDataset(context.Background(), &api.Datatype{Dataset: datasetID})
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.CreateDataset() error = %v, wantErr = %v", err, tt.wantErr)
 			}
