@@ -25,12 +25,24 @@ steps:
   args:
   - -c
   - |-
-    sed -i -e 's/{{COMMIT_SHA}}/'${COMMIT_SHA}'/g' \
-           -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/g' \
-           -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/g' \
-           -e 's/{{BUCKETS}}/'$_BUCKETS'/g' \
+    sed -i -e 's/{{COMMIT_SHA}}/'${COMMIT_SHA}'/' \
+           -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/' \
+           -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/' \
+           -e 's/{{BUCKETS}}/'$_BUCKETS'/' \
            k8s/autoloader.yaml
     /builder/kubectl.bash apply -f k8s/autoloader.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+
+- name: gcr.io/cloud-builders/kubectl
+  id: "Deploy daily cronjob"
+  entrypoint: /bin/bash
+  - -c
+  - |-
+    sed -i -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/0 */3 * * */' \
+           -e 's/{{AUTOLOAD_PERIOD}}/daily/' \
+           k8s/autoloader-cronjob-template.yaml > autoloader-daily-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-daily-cronjob.yaml
+
+
