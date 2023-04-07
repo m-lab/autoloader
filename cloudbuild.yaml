@@ -48,8 +48,7 @@ steps:
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
-  substitutions:
-    _FREQUENCY=hourly
+  - _FREQUENCY=hourly
 
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy ${_FREQUENCY} job"
@@ -64,8 +63,7 @@ steps:
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
-  substitutions:
-    _FREQUENCY=weekly
+  - _FREQUENCY=weekly
 
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy ${_FREQUENCY} job"
@@ -80,5 +78,4 @@ steps:
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
-  substitutions:
-    _FREQUENCY=monthly
+  - _FREQUENCY=monthly
