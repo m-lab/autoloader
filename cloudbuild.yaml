@@ -5,6 +5,14 @@ options:
   - PROJECT_ID=$PROJECT_ID
 
 steps:
+- name: gcr.io/$PROJECT_ID/golang-cbif:1.20
+  id: "Run all unit tests"
+  args:
+  - go version
+  - go get -v -t ./...
+  - go test -v -race ./...
+  - go test -v ./...
+
 - name: gcr.io/cloud-builders/docker
   id: "Build the autoloader docker image"
   args: [
