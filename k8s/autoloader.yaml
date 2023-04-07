@@ -12,7 +12,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: autoloader
+  name: autoloader-service
   labels:
     app: autoloader
 spec:
