@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: autoloader
+  name: autoloader-service
 spec:
   ports:
     - port: 8080
@@ -12,7 +12,7 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: autoloader-service
+  name: autoloader
   labels:
     app: autoloader
 spec:
