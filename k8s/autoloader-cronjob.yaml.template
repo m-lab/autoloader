@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: autoloader-cronjob
+  name: autoloader-{{FREQUENCY}}-cronjob
 spec:
   schedule: {{AUTOLOADER_CRON_SCHEDULE}}
   concurrencyPolicy: Forbid

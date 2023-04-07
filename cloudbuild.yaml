@@ -36,17 +36,46 @@ steps:
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
 
 - name: gcr.io/cloud-builders/kubectl
-  id: "Deploy daily cronjob"
+  id: "Deploy $FREQUENCY job"
   entrypoint: /bin/bash
   args:
   - -c
   - |-
     sed -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/0 *\/3 * * */' \
         -e 's/{{LOAD_PERIOD}}/daily/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-daily-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-daily-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-$FREQUENCY-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-$FREQUENCY-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+  - FREQUENCY=hourly
 
+- name: gcr.io/cloud-builders/kubectl
+  id: "Deploy $FREQUENCY job"
+  entrypoint: /bin/bash
+  args:
+  - -c
+  - |-
+    sed -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/0 0 * * 0/' \
+        -e 's/{{LOAD_PERIOD}}/monthly/' \
+        k8s/autoloader-cronjob.yaml.template > autoloader-$FREQUENCY-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-$FREQUENCY-cronjob.yaml
+  env:
+  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
+  - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+  - FREQUENCY=weekly
 
+- name: gcr.io/cloud-builders/kubectl
+  id: "Deploy $FREQUENCY job"
+  entrypoint: /bin/bash
+  args:
+  - -c
+  - |-
+    sed -e 's/{{AUTOLOADER_CRON_SCHEDULE}}/0 0 1 * */' \
+        -e 's/{{LOAD_PERIOD}}/annually/' \
+        k8s/autoloader-cronjob.yaml.template > autoloader-$FREQUENCY-cronjob.yaml
+    /builder/kubectl.bash apply -f autoloader-$FREQUENCY-cronjob.yaml
+  env:
+  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
+  - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+  - FREQUENCY=monthly
