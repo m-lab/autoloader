@@ -34,8 +34,11 @@ spec:
         - -project={{PROJECT_ID}}
         - -mlab-bucket={{MLAB_BUCKET}}
         - -buckets={{BUCKETS}}
-        - -prometheusx.listen-address=:8080
+        - -prometheusx.listen-address=:9990
         ports:
-        - containerPort: 8080
+        - name: prometheus-port
+            containerPort: 9990
+        - name: service-port
+            containerPort: 8080
       nodeSelector:
         gardener-node: "true"
