@@ -1,0 +1,19 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: autoloader-{{FREQUENCY}}-cronjob
+spec:
+  schedule: {{CRON_SCHEDULE}}
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: busybox
+            image: busybox
+            args:
+            - wget
+            - http://autoloader-service:8080/v1/load?period={{LOAD_PERIOD}}

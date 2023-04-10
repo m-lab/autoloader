@@ -1,0 +1,44 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: autoloader-service
+spec:
+  ports:
+    - port: 8080
+      targetPort: 8080
+  selector:
+    app: autoloader
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoloader
+  labels:
+    app: autoloader
+spec:
+  selector:
+    matchLabels:
+      app: autoloader
+  template:
+    metadata:
+      labels:
+        app: autoloader
+      annotations:
+        prometheus.io/scrape: 'true'
+    spec:
+      containers:
+      - name: autoloader
+        image: gcr.io/{{PROJECT_ID}}/autoloader:{{COMMIT_SHA}}
+        args:
+        - -listenaddr=:8080
+        - -project={{PROJECT_ID}}
+        - -mlab-bucket={{MLAB_BUCKET}}
+        - -buckets={{BUCKETS}}
+        - -prometheusx.listen-address=:9990
+        ports:
+          - name: prometheus-port
+            containerPort: 9990
+          - name: service-port
+            containerPort: 8080
+      nodeSelector:
+        gardener-node: "true"
