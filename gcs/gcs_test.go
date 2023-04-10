@@ -141,6 +141,8 @@ func TestGetDirs(t *testing.T) {
 		objs    []fakestorage.Object
 		start   string
 		end     string
+		dt      string
+		exp     string
 		want    []Dir
 		wantErr bool
 	}{
@@ -154,6 +156,29 @@ func TestGetDirs(t *testing.T) {
 					},
 				},
 			},
+			dt:    "datatype1",
+			exp:   "experiment1",
+			start: "2023/03/05",
+			end:   "2023/03/07",
+			want: []Dir{
+				{
+					Path: "gs://" + path.Join(testBucket, prefix, "experiment1/datatype1/2023/03/06/*"),
+					Date: time.Date(2023, 03, 06, 0, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+		{
+			name: "success-with-mlab-bucket",
+			objs: []fakestorage.Object{
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "experiment1/datatype1/2023/03/06/",
+					},
+				},
+			},
+			dt:    "datatype1",
+			exp:   "raw_experiment1",
 			start: "2023/03/05",
 			end:   "2023/03/07",
 			want: []Dir{
@@ -173,6 +198,8 @@ func TestGetDirs(t *testing.T) {
 					},
 				},
 			},
+			dt:    "datatype1",
+			exp:   "experiment1",
 			start: "2023/03/05",
 			end:   "2023/03/07",
 			want:  []Dir{},
@@ -187,6 +214,8 @@ func TestGetDirs(t *testing.T) {
 					},
 				},
 			},
+			dt:    "datatype1",
+			exp:   "experiment1",
 			start: "2023/03/05",
 			end:   "2023/03/07",
 			want:  []Dir{},
@@ -201,6 +230,8 @@ func TestGetDirs(t *testing.T) {
 					},
 				},
 			},
+			dt:    "datatype1",
+			exp:   "experiment1",
 			start: "2023/03/05",
 			end:   "2023/03/06",
 			want:  []Dir{},
@@ -208,6 +239,8 @@ func TestGetDirs(t *testing.T) {
 		{
 			name:    "inexistent-bucket",
 			objs:    []fakestorage.Object{},
+			dt:      "datatype1",
+			exp:     "experiment1",
 			start:   "2023/03/05",
 			end:     "2023/03/07",
 			wantErr: true,
@@ -224,8 +257,8 @@ func TestGetDirs(t *testing.T) {
 			client := server.Client()
 
 			dt := &api.Datatype{
-				Name:       "datatype1",
-				Experiment: "experiment1",
+				Name:       tt.dt,
+				Experiment: tt.exp,
 				Bucket: &storagex.Bucket{
 					BucketHandle: client.Bucket(testBucket),
 				},
