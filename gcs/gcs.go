@@ -77,15 +77,13 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 
 			dir, filename := path.Split(o.Name)
 			exp := path.Base(dir)
-			ds := exp
 			if attrs.Name == c.mlabBucket {
-				ds = "raw_" + ds
+				exp = "raw_" + exp
 			}
 
 			s := &api.Datatype{
 				Name:        strings.TrimSuffix(filename, schemaFileSuffix),
 				Experiment:  exp,
-				Dataset:     ds,
 				Location:    attrs.Location,
 				Schema:      file,
 				UpdatedTime: o.ObjectAttrs.Updated,
@@ -102,7 +100,8 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 // GetDirs returns all the directory paths for a datatype within a start (inclusive) and
 // end (exclusive) date.
 func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end string) ([]Dir, error) {
-	prefix := path.Join(prefix, dt.Experiment, dt.Name)
+	exp := strings.TrimPrefix(dt.Experiment, "raw_")
+	prefix := path.Join(prefix, exp, dt.Name)
 	it := dt.Bucket.Objects(ctx, &storage.Query{
 		Prefix:      prefix,
 		StartOffset: path.Join(prefix, start),

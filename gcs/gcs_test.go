@@ -48,7 +48,6 @@ func TestClient_GetDatatypes(t *testing.T) {
 				{
 					Name:        "datatype1",
 					Experiment:  "experiment1",
-					Dataset:     "experiment1",
 					Location:    "US",
 					Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
 					UpdatedTime: updated,
@@ -83,8 +82,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			want: []*api.Datatype{
 				{
 					Name:        "datatype1",
-					Experiment:  "experiment1",
-					Dataset:     "raw_experiment1",
+					Experiment:  "raw_experiment1",
 					Location:    "US",
 					Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
 					UpdatedTime: updated,
@@ -95,7 +93,6 @@ func TestClient_GetDatatypes(t *testing.T) {
 				{
 					Name:        "datatype2",
 					Experiment:  "experiment2",
-					Dataset:     "experiment2",
 					Location:    "US",
 					Schema:      testingx.MustReadFile(t, "testdata/experiment2/datatype2.table.json"),
 					UpdatedTime: updated,

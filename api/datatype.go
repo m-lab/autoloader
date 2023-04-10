@@ -12,7 +12,6 @@ import (
 type Datatype struct {
 	Name        string           // Datatype name (e.g., "ndt7")
 	Experiment  string           // Experiment name (e.g., "ndt")
-	Dataset     string           // Dataset name (e.g., "raw_ndt")
 	Location    string           // Bucket location (e.g., "us-east")
 	Schema      []byte           // Contents of schema file in GCS.
 	UpdatedTime time.Time        // Last time the schema was updated in GCS.

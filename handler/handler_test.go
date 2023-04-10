@@ -179,7 +179,6 @@ func TestClient_processDatatype(t *testing.T) {
 			dt: &api.Datatype{
 				Name:       "datatype",
 				Experiment: "dataset",
-				Dataset:    "dataset",
 			},
 			wantCreate: 2,
 			wantUpdate: 0,
@@ -198,8 +197,7 @@ func TestClient_processDatatype(t *testing.T) {
 			bq: &fakeBQ{},
 			dt: &api.Datatype{
 				Name:       "datatype",
-				Experiment: "dataset",
-				Dataset:    "raw_dataset",
+				Experiment: "raw_dataset",
 			},
 			wantCreate: 2,
 			wantUpdate: 0,
@@ -220,7 +218,6 @@ func TestClient_processDatatype(t *testing.T) {
 			dt: &api.Datatype{
 				Name:       "datatype",
 				Experiment: "dataset",
-				Dataset:    "dataset",
 			},
 			wantCreate: 0,
 			wantUpdate: 0,
@@ -245,7 +242,6 @@ func TestClient_processDatatype(t *testing.T) {
 			dt: &api.Datatype{
 				Name:        "datatype",
 				Experiment:  "dataset",
-				Dataset:     "dataset",
 				UpdatedTime: time.Now().Add(-time.Hour),
 			},
 			wantCreate: 0,
@@ -300,7 +296,6 @@ func TestClient_processDatatype(t *testing.T) {
 			dt: &api.Datatype{
 				Name:        "datatype",
 				Experiment:  "dataset",
-				Dataset:     "dataset",
 				UpdatedTime: time.Now().Add(-time.Hour),
 			},
 			wantCreate: 0,

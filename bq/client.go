@@ -30,10 +30,10 @@ func (c *Client) GetDataset(ctx context.Context, name string) (bqiface.Dataset, 
 // CreateDataset creates a new dataset for the input `api.Datatype`.
 // It returns an error if the dataset already exists.
 func (c *Client) CreateDataset(ctx context.Context, dt *api.Datatype) (bqiface.Dataset, error) {
-	ds := c.Dataset(dt.Dataset)
+	ds := c.Dataset(dt.Experiment)
 	err := ds.Create(ctx, &bqiface.DatasetMetadata{
 		DatasetMetadata: bigquery.DatasetMetadata{
-			Name:     dt.Dataset,
+			Name:     dt.Experiment,
 			Location: dt.Location,
 		},
 	})
