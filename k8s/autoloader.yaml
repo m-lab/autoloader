@@ -36,9 +36,9 @@ spec:
         - -buckets={{BUCKETS}}
         - -prometheusx.listen-address=:9990
         ports:
-        - name: prometheus-port
+          - name: prometheus-port
             containerPort: 9990
-        - name: service-port
+          - name: service-port
             containerPort: 8080
       nodeSelector:
         gardener-node: "true"
