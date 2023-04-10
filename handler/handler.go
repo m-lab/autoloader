@@ -86,10 +86,10 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 		ds, err = c.BQClient.CreateDataset(ctx, dt)
 		if err != nil {
 			log.Printf("failed to create BigQuery dataset %s: %v", dt.Experiment, err)
-			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-dataset", "error")
+			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-dataset", "error").Inc()
 			return err
 		}
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-dataset", "OK")
+		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-dataset", "OK").Inc()
 	}
 
 	// Get or create table.
@@ -98,10 +98,10 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 		md, err = c.BQClient.CreateTable(ctx, ds, dt)
 		if err != nil {
 			log.Printf("failed to create BigQuery table %s.%s: %v", dt.Experiment, dt.Name, err)
-			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-table", "error")
+			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-table", "error").Inc()
 			return err
 		}
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-table", "OK")
+		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-table", "OK").Inc()
 		// Since a new table was created, override the given optionss and default to options
 		// of complete history.
 		opts = periodOpts("everything")
@@ -112,20 +112,20 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 		err = c.BQClient.UpdateSchema(ctx, ds, dt)
 		if err != nil {
 			log.Printf("failed to update BigQuery table %s.%s: %v", dt.Experiment, dt.Name, err)
-			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "update-schema", "error")
+			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "update-schema", "error").Inc()
 			return err
 		}
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "update-schema", "OK")
+		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "update-schema", "OK").Inc()
 	}
 
 	// Load data.
 	err = c.load(ctx, ds, dt, opts)
 	if err != nil {
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "load", "error")
+		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "load", "error").Inc()
 		return err
 	}
 
-	metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "load", "OK")
+	metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "load", "OK").Inc()
 	return nil
 }
 
