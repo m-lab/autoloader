@@ -24,6 +24,7 @@ var (
 const (
 	prefix           = "autoload/v1/"
 	schemaFileSuffix = ".table.json"
+	rawPrefix        = "raw_"
 )
 
 // Client is used to interact with Google Cloud Storage.
@@ -78,7 +79,7 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 			dir, filename := path.Split(o.Name)
 			exp := path.Base(dir)
 			if attrs.Name == c.mlabBucket {
-				exp = "raw_" + exp
+				exp = rawPrefix + exp
 			}
 
 			s := &api.Datatype{
@@ -100,7 +101,7 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 // GetDirs returns all the directory paths for a datatype within a start (inclusive) and
 // end (exclusive) date.
 func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end string) ([]Dir, error) {
-	exp := strings.TrimPrefix(dt.Experiment, "raw_")
+	exp := strings.TrimPrefix(dt.Experiment, rawPrefix)
 	prefix := path.Join(prefix, exp, dt.Name)
 	it := dt.Bucket.Objects(ctx, &storage.Query{
 		Prefix:      prefix,
