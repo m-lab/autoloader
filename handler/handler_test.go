@@ -177,7 +177,27 @@ func TestClient_processDatatype(t *testing.T) {
 			},
 			bq: &fakeBQ{},
 			dt: &api.Datatype{
-				Name: "datatype",
+				Name:       "datatype",
+				Experiment: "dataset",
+			},
+			wantCreate: 2,
+			wantUpdate: 0,
+			wantLoad:   1,
+			wantErr:    false,
+		},
+		{
+			name: "success-mlab-dataset",
+			storage: &fakeStorage{
+				dirs: map[string][]gcs.Dir{
+					"datatype": {{
+						Path: "fake-dir-path",
+					}},
+				},
+			},
+			bq: &fakeBQ{},
+			dt: &api.Datatype{
+				Name:       "datatype",
+				Experiment: "raw_dataset",
 			},
 			wantCreate: 2,
 			wantUpdate: 0,
