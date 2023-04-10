@@ -34,6 +34,7 @@ spec:
         - -project={{PROJECT_ID}}
         - -mlab-bucket={{MLAB_BUCKET}}
         - -buckets={{BUCKETS}}
+        - -prometheusx.listen-address=:8080
         ports:
         - containerPort: 8080
       nodeSelector:
