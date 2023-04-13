@@ -11,20 +11,18 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	set "github.com/deckarep/golang-set/v2"
 	"github.com/m-lab/autoloader/api"
 	"github.com/m-lab/go/storagex"
 	"github.com/m-lab/go/timex"
 	"google.golang.org/api/iterator"
 )
 
-var (
-	suffix = regexp.MustCompile(`(\d{4}/[01]\d/[0123]\d)/$`)
-)
-
 const (
 	prefix           = "autoload/v1/"
 	schemaFileSuffix = ".table.json"
 	rawPrefix        = "raw_"
+	datePattern      = `/\d{4}/[01]\d/[0123]\d`
 )
 
 // Client is used to interact with Google Cloud Storage.
@@ -109,6 +107,14 @@ func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end strin
 		EndOffset:   path.Join(prefix, end),
 	})
 
+	// Create match of the form autoload/v1/<Experiment>/<Datatype>/YYYY/MM/DD.
+	dirMatch, err := regexp.Compile(prefix + datePattern)
+	if err != nil {
+		log.Println("failed to create regular expression:", err)
+		return nil, err
+	}
+
+	dirNames := set.NewSet[string]()
 	var dirs []Dir
 	for {
 		attr, err := it.Next()
@@ -121,18 +127,23 @@ func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end strin
 			return nil, err
 		}
 
-		date := suffix.FindString(attr.Name)
-		if date == "" {
+		// Extract directory pattern match from object name.
+		dirPath := dirMatch.FindString(attr.Name)
+		if dirPath == "" {
 			continue
 		}
 
-		format, err := time.Parse(timex.YYYYMMDDWithSlash+"/", date)
-		if err != nil {
+		// Check if directory has already been added.
+		if dirNames.Contains(dirPath) {
 			continue
 		}
+		dirNames.Add(dirPath)
 
+		// Extract date from directory (YYYY/MM/DD).
+		date := strings.TrimPrefix(dirPath, prefix+"/")
+		format, _ := time.Parse(timex.YYYYMMDDWithSlash, date)
 		dir := Dir{
-			Path: "gs://" + path.Join(attr.Bucket, attr.Name, "*"),
+			Path: "gs://" + path.Join(attr.Bucket, dirPath, "/*"),
 			Date: format,
 		}
 		dirs = append(dirs, dir)

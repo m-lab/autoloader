@@ -152,7 +152,7 @@ func TestGetDirs(t *testing.T) {
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
-						Name:       prefix + "experiment1/datatype1/2023/03/06/",
+						Name:       prefix + "experiment1/datatype1/2023/03/06/filename.jsonl.gz",
 					},
 				},
 			},
@@ -173,7 +173,7 @@ func TestGetDirs(t *testing.T) {
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
-						Name:       prefix + "experiment1/datatype1/2023/03/06/",
+						Name:       prefix + "experiment1/datatype1/2023/03/06/filename.jsonl.gz",
 					},
 				},
 			},
@@ -189,12 +189,45 @@ func TestGetDirs(t *testing.T) {
 			},
 		},
 		{
-			name: "incorrect-suffix",
+			name: "success-multiple-objs-same-dir",
 			objs: []fakestorage.Object{
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
-						Name:       prefix + "experiment1/datatype1/2023/03/06/incorrect",
+						Name:       prefix + "experiment1/datatype1/2023/03/06/",
+					},
+				},
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "experiment1/datatype1/2023/03/06/filename.jsonl.gz",
+					},
+				},
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "experiment1/datatype1/2023/03/06/filename2.jsonl.gz",
+					},
+				},
+			},
+			dt:    "datatype1",
+			exp:   "experiment1",
+			start: "2023/03/05",
+			end:   "2023/03/07",
+			want: []Dir{
+				{
+					Path: "gs://" + path.Join(testBucket, prefix, "experiment1/datatype1/2023/03/06/*"),
+					Date: time.Date(2023, 03, 06, 0, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+		{
+			name: "incorrect-dir-path",
+			objs: []fakestorage.Object{
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "incorrect-experiment/datatype1/2023/03/06/filename.jsonl.gz",
 					},
 				},
 			},
@@ -210,7 +243,7 @@ func TestGetDirs(t *testing.T) {
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
-						Name:       prefix + "experiment1/datatype1/03/06/2023/",
+						Name:       prefix + "experiment1/datatype1/03/06/2023/filename.jsonl.gz",
 					},
 				},
 			},
@@ -226,7 +259,7 @@ func TestGetDirs(t *testing.T) {
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
-						Name:       prefix + "experiment1/datatype1/03/06/2023/",
+						Name:       prefix + "experiment1/datatype1/2023/03/06/filename.jsonl.gz",
 					},
 				},
 			},
