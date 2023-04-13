@@ -311,7 +311,7 @@ func TestGetDirs(t *testing.T) {
 	}
 }
 
-func TestGetDirs_InlivadRegex(t *testing.T) {
+func TestGetDirs_InvalidRegex(t *testing.T) {
 	server, err := fakestorage.NewServerWithOptions(fakestorage.Options{
 		InitialObjects: []fakestorage.Object{
 			{
