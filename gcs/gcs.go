@@ -18,11 +18,14 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+var (
+	datePattern = `/\d{4}/[01]\d/[0123]\d`
+)
+
 const (
 	prefix           = "autoload/v1/"
 	schemaFileSuffix = ".table.json"
 	rawPrefix        = "raw_"
-	datePattern      = `/\d{4}/[01]\d/[0123]\d`
 )
 
 // Client is used to interact with Google Cloud Storage.

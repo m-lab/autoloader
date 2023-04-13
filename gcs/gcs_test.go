@@ -227,14 +227,14 @@ func TestGetDirs(t *testing.T) {
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
-						Name:       prefix + "incorrect-experiment/datatype1/2023/03/06/filename.jsonl.gz",
+						Name:       prefix + "experiment1/datatype1/2023/03/invalid-day/filename.jsonl.gz",
 					},
 				},
 			},
 			dt:    "datatype1",
 			exp:   "experiment1",
-			start: "2023/03/05",
-			end:   "2023/03/07",
+			start: "2023/03/",
+			end:   "2023/04/",
 			want:  []Dir{},
 		},
 		{
@@ -308,6 +308,42 @@ func TestGetDirs(t *testing.T) {
 				t.Errorf("Client.GetDirs() = %v, want %v", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestGetDirs_InlivadRegex(t *testing.T) {
+	server, err := fakestorage.NewServerWithOptions(fakestorage.Options{
+		InitialObjects: []fakestorage.Object{
+			{
+				ObjectAttrs: fakestorage.ObjectAttrs{
+					BucketName: testBucket,
+					Name:       prefix + "experiment1/datatype1/2023/03/06/filename.jsonl.gz",
+				},
+			},
+		},
+	})
+	testingx.Must(t, err, "error initializing GCS server")
+	defer server.Stop()
+	client := server.Client()
+
+	dt := &api.Datatype{
+		Name:       "datatype1",
+		Experiment: "experiment1",
+		Bucket: &storagex.Bucket{
+			BucketHandle: client.Bucket(testBucket),
+		},
+	}
+
+	// Make datePattern an invalid regex.
+	oldPattern := datePattern
+	datePattern = `\`
+	defer func() { datePattern = oldPattern }()
+
+	c := &Client{}
+	_, err = c.GetDirs(context.TODO(), dt, "2023/03/05", "2023/03/07")
+	if err == nil {
+		t.Errorf("Client.GetDirs() error = %v, wantErr != nil", err)
+		return
 	}
 }
 
