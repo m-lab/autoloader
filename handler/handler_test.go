@@ -336,74 +336,67 @@ func TestClient_processDatatype(t *testing.T) {
 	}
 }
 
-// func TestClient_load(t *testing.T) {
-// 	tests := []struct {
-// 		name     string
-// 		storage  *fakeStorage
-// 		bq       *fakeBQ
-// 		dt       *api.Datatype
-// 		wantLoad int
-// 		wantErr  bool
-// 	}{
-// 		{
-// 			name: "success",
-// 			storage: &fakeStorage{
-// 				dirs: map[string][]gcs.Dir{
-// 					"datatype": {
-// 						{Path: "fake-dir-path1"},
-// 						{Path: "fake-dir-path2"},
-// 						{Path: "fake-dir-path3"},
-// 					},
-// 				},
-// 			},
-// 			bq: &fakeBQ{},
-// 			dt: &api.Datatype{
-// 				Name: "datatype",
-// 			},
-// 			wantLoad: 3,
-// 			wantErr:  false,
-// 		},
-// 		{
-// 			name: "storage-error",
-// 			storage: &fakeStorage{
-// 				dirs: map[string][]gcs.Dir{},
-// 			},
-// 			bq: &fakeBQ{},
-// 			dt: &api.Datatype{
-// 				Name: "datatype",
-// 			},
-// 			wantLoad: 0,
-// 			wantErr:  true,
-// 		},
-// 		{
-// 			name: "load-error",
-// 			storage: &fakeStorage{
-// 				dirs: map[string][]gcs.Dir{
-// 					"datatype": {{
-// 						Path: "fake-dir-path",
-// 					}},
-// 				},
-// 			},
-// 			bq: &fakeBQ{loadErr: errors.New("failed to load file")},
-// 			dt: &api.Datatype{
-// 				Name: "datatype",
-// 			},
-// 			wantLoad: 0,
-// 			wantErr:  true,
-// 		},
-// 	}
+func TestClient_load(t *testing.T) {
+	tests := []struct {
+		name     string
+		storage  *fakeStorage
+		bq       *fakeBQ
+		wantLoad int
+		wantErr  bool
+	}{
+		{
+			name: "success",
+			storage: &fakeStorage{
+				dirs: map[string][]gcs.Dir{
+					"datatype": {
+						{Path: "fake-dir-path1"},
+						{Path: "fake-dir-path2"},
+						{Path: "fake-dir-path3"},
+					},
+				},
+			},
+			bq:       &fakeBQ{},
+			wantLoad: 3,
+			wantErr:  false,
+		},
+		{
+			name: "storage-error",
+			storage: &fakeStorage{
+				dirs: map[string][]gcs.Dir{},
+			},
+			bq:       &fakeBQ{},
+			wantLoad: 0,
+			wantErr:  true,
+		},
+		{
+			name: "load-error",
+			storage: &fakeStorage{
+				dirs: map[string][]gcs.Dir{
+					"datatype": {{
+						Path: "fake-dir-path",
+					}},
+				},
+			},
+			bq:       &fakeBQ{loadErr: errors.New("failed to load file")},
+			wantLoad: 0,
+			wantErr:  true,
+		},
+	}
 
-// 	for _, tt := range tests {
-// 		t.Run(tt.name, func(t *testing.T) {
-// 			c := NewClient(tt.storage, tt.bq)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := NewClient(tt.storage, tt.bq)
+			dt := api.NewMlabDatatype(api.DatatypeOpts{
+				Name: "datatype",
+			})
 
-// 			if err := c.load(context.Background(), nil, tt.dt, periodOpts("annually")); (err != nil) != tt.wantErr {
-// 				t.Errorf("Client.load() error = %v, wantErr = %v", err, tt.wantErr)
-// 			}
+			if err := c.load(context.Background(), nil, dt, periodOpts("annually")); (err != nil) != tt.wantErr {
+				t.Errorf("Client.load() error = %v, wantErr = %v", err, tt.wantErr)
+			}
 
-// 			if tt.bq.loadCount != tt.wantLoad {
-// 				t.Errorf("Client.load() got = %d, want = %d", tt.bq.loadCount, tt.wantLoad)
-// 			}
-// 		})
-// 	}
-// }
+			if tt.bq.loadCount != tt.wantLoad {
+				t.Errorf("Client.load() got = %d, want = %d", tt.bq.loadCount, tt.wantLoad)
+			}
+		})
+	}
+}
