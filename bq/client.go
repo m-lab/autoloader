@@ -30,10 +30,10 @@ func (c *Client) GetDataset(ctx context.Context, name string) (bqiface.Dataset, 
 // CreateDataset creates a new dataset for the input `api.Datatype`.
 // It returns an error if the dataset already exists.
 func (c *Client) CreateDataset(ctx context.Context, dt *api.Datatype) (bqiface.Dataset, error) {
-	ds := c.Dataset(dt.Experiment)
+	ds := c.Dataset(dt.Dataset())
 	err := ds.Create(ctx, &bqiface.DatasetMetadata{
 		DatasetMetadata: bigquery.DatasetMetadata{
-			Name:     dt.Experiment,
+			Name:     dt.Dataset(),
 			Location: dt.Location,
 		},
 	})
@@ -56,9 +56,9 @@ func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Da
 		return nil, err
 	}
 
-	t := ds.Table(dt.Name)
+	t := ds.Table(dt.Table())
 	err = t.Create(ctx, &bigquery.TableMetadata{
-		Name:   dt.Name,
+		Name:   dt.Table(),
 		Schema: bqSchema,
 		TimePartitioning: &bigquery.TimePartitioning{
 			Type:                   bigquery.DayPartitioningType,
@@ -79,7 +79,7 @@ func (c *Client) UpdateSchema(ctx context.Context, ds bqiface.Dataset, dt *api.D
 		return err
 	}
 
-	t := ds.Table(dt.Name)
+	t := ds.Table(dt.Table())
 	_, err = t.Update(ctx, bigquery.TableMetadataToUpdate{
 		Schema: bqSchema,
 	}, "")

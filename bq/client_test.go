@@ -13,15 +13,15 @@ import (
 )
 
 var (
-	projectID = "project"
-	datasetID = "dataset"
-	tableID   = "table"
+	projectID    = "project"
+	experimentID = "experiment1"
+	datatypeID   = "datatype1"
 )
 
 func TestClient_GetDataset(t *testing.T) {
 	ds := bqfake.NewDataset(nil, &bqiface.DatasetMetadata{
 		DatasetMetadata: bigquery.DatasetMetadata{
-			Name: datasetID,
+			Name: experimentID,
 		},
 	}, nil)
 
@@ -33,7 +33,7 @@ func TestClient_GetDataset(t *testing.T) {
 	}{
 		{
 			name:     "exists",
-			datasets: map[string]*bqfake.Dataset{datasetID: ds},
+			datasets: map[string]*bqfake.Dataset{experimentID: ds},
 			want:     ds,
 			wantErr:  false,
 		},
@@ -50,7 +50,7 @@ func TestClient_GetDataset(t *testing.T) {
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			got, err := c.GetDataset(context.Background(), datasetID)
+			got, err := c.GetDataset(context.Background(), experimentID)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.GetDataset() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -70,27 +70,45 @@ func TestClient_CreateDataset(t *testing.T) {
 	tests := []struct {
 		name    string
 		dataset *bqfake.Dataset
+		dt      *api.Datatype
 		wantErr bool
 	}{
 		{
-			name:    "success",
+			name:    "success-mlab",
 			dataset: bqfake.NewDataset(nil, nil, nil),
+			dt: api.NewMlabDatatype(
+				api.DatatypeOpts{
+					Experiment: experimentID,
+				}),
+			wantErr: false,
+		},
+		{
+			name:    "success-third-party",
+			dataset: bqfake.NewDataset(nil, nil, nil),
+			dt: api.NewThirdPartyDatatype(
+				api.DatatypeOpts{
+					Experiment: experimentID,
+				}, ""),
 			wantErr: false,
 		},
 		{
 			name:    "error",
 			dataset: bqfake.NewDataset(nil, nil, errors.New("create dataset error")),
+			dt: api.NewMlabDatatype(
+				api.DatatypeOpts{
+					Experiment: experimentID,
+				}),
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: tt.dataset})
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): tt.dataset})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			got, err := c.CreateDataset(context.Background(), &api.Datatype{Experiment: datasetID})
+			got, err := c.CreateDataset(context.Background(), tt.dt)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.CreateDataset() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -100,7 +118,7 @@ func TestClient_CreateDataset(t *testing.T) {
 			}
 
 			if got != tt.dataset {
-				t.Errorf("Client.CreateDataset() = %v, want = %v", got, tt.dataset)
+				t.Errorf("Client.CreateDataset() = %+v, want = %+v", got, tt.dataset)
 			}
 		})
 	}
@@ -127,16 +145,16 @@ func TestClient_GetTableMetadata(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := bqfake.TableOpts{
 				Dataset:  bqfake.Dataset{},
-				Name:     tableID,
+				Name:     datatypeID,
 				Metadata: tt.md,
 			}
 			table := bqfake.NewTable(opts)
-			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
-			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{datatypeID: table}, nil, nil)
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{experimentID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			got, err := c.GetTableMetadata(context.Background(), ds, tableID)
+			got, err := c.GetTableMetadata(context.Background(), ds, datatypeID)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.GetTableMetadata() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -155,30 +173,60 @@ func TestClient_GetTableMetadata(t *testing.T) {
 func TestClient_CreateTable(t *testing.T) {
 	tests := []struct {
 		name    string
-		schema  []byte
 		mdType  bigquery.TableType
+		dt      *api.Datatype
 		wantErr bool
 	}{
 		{
-			name:    "success",
-			schema:  testingx.MustReadFile(t, "./testdata/schema.json"),
+			name: "success-mlab",
+			dt: api.NewMlabDatatype(
+				api.DatatypeOpts{
+					Name:       datatypeID,
+					Experiment: experimentID,
+					Schema:     testingx.MustReadFile(t, "./testdata/schema.json"),
+				}),
+			wantErr: false,
+		},
+		{
+			name: "success-third-party",
+			dt: api.NewThirdPartyDatatype(
+				api.DatatypeOpts{
+					Name:       datatypeID,
+					Experiment: experimentID,
+					Schema:     testingx.MustReadFile(t, "./testdata/schema.json"),
+				}, ""),
 			wantErr: false,
 		},
 		{
 			// TableMetadata.Type != "" indicates the table has been created.
 			// If the TYPE is already set, bqfake.Table.Create() returns an error.
-			name:    "create-error",
-			schema:  testingx.MustReadFile(t, "./testdata/schema.json"),
-			mdType:  "TYPE",
+			name:   "create-error",
+			mdType: "TYPE",
+			dt: api.NewMlabDatatype(
+				api.DatatypeOpts{
+					Name:       datatypeID,
+					Experiment: experimentID,
+					Schema:     testingx.MustReadFile(t, "./testdata/schema.json"),
+				}),
 			wantErr: true,
 		},
 		{
-			name:    "invalid-schema",
-			schema:  testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
+			name: "invalid-schema",
+			dt: api.NewMlabDatatype(
+				api.DatatypeOpts{
+					Name:       datatypeID,
+					Experiment: experimentID,
+					Schema:     testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
+				}),
 			wantErr: true,
 		},
 		{
-			name:    "no-schema",
+			name: "no-schema",
+			dt: api.NewMlabDatatype(
+				api.DatatypeOpts{
+					Name:       datatypeID,
+					Experiment: experimentID,
+				}),
 			wantErr: true,
 		},
 	}
@@ -188,18 +236,16 @@ func TestClient_CreateTable(t *testing.T) {
 			md := &bigquery.TableMetadata{Type: tt.mdType}
 			opts := bqfake.TableOpts{
 				Dataset:  bqfake.Dataset{},
-				Name:     tableID,
+				Name:     tt.dt.Table(),
 				Metadata: md,
 			}
 			table := bqfake.NewTable(opts)
-			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
-			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{tt.dt.Table(): table}, nil, nil)
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			dt := &api.Datatype{Name: tableID, Schema: tt.schema}
-
-			got, err := c.CreateTable(context.Background(), ds, dt)
+			got, err := c.CreateTable(context.Background(), ds, tt.dt)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.CreateTable() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -220,21 +266,38 @@ func TestClient_CreateTable(t *testing.T) {
 func TestClient_UpdateSchema(t *testing.T) {
 	tests := []struct {
 		name    string
-		schema  []byte
+		dt      *api.Datatype
 		wantErr bool
 	}{
 		{
-			name:    "success",
-			schema:  testingx.MustReadFile(t, "./testdata/schema.json"),
+			name: "success-mlab",
+			dt: api.NewMlabDatatype(api.DatatypeOpts{
+				Name:   datatypeID,
+				Schema: testingx.MustReadFile(t, "./testdata/schema.json"),
+			}),
 			wantErr: false,
 		},
 		{
-			name:    "invalid-schema",
-			schema:  testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
+			name: "success-third-party",
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
+				Name:   datatypeID,
+				Schema: testingx.MustReadFile(t, "./testdata/schema.json"),
+			}, ""),
+			wantErr: false,
+		},
+		{
+			name: "invalid-schema",
+			dt: api.NewMlabDatatype(api.DatatypeOpts{
+				Name:   datatypeID,
+				Schema: testingx.MustReadFile(t, "./testdata/invalid-schema.json"),
+			}),
 			wantErr: true,
 		},
 		{
-			name:    "no-schema",
+			name: "no-schema",
+			dt: api.NewMlabDatatype(api.DatatypeOpts{
+				Name: datatypeID,
+			}),
 			wantErr: true,
 		},
 	}
@@ -243,18 +306,16 @@ func TestClient_UpdateSchema(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := bqfake.TableOpts{
 				Dataset:  bqfake.Dataset{},
-				Name:     tableID,
+				Name:     tt.dt.Table(),
 				Metadata: &bigquery.TableMetadata{},
 			}
 			table := bqfake.NewTable(opts)
-			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
-			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{tt.dt.Table(): table}, nil, nil)
+			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
-			dt := &api.Datatype{Name: tableID, Schema: tt.schema}
-
-			err = c.UpdateSchema(context.Background(), ds, dt)
+			err = c.UpdateSchema(context.Background(), ds, tt.dt)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.UpdateSchema() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -302,18 +363,18 @@ func TestClient_Load(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := bqfake.TableOpts{
 				Dataset:  bqfake.Dataset{},
-				Name:     tableID,
+				Name:     datatypeID,
 				Metadata: &bigquery.TableMetadata{},
 				Loader:   tt.loader,
 			}
 			table := bqfake.NewTable(opts)
-			ds := bqfake.NewDataset(map[string]*bqfake.Table{tableID: table}, nil, nil)
-			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{datasetID: ds})
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{datatypeID: table}, nil, nil)
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{experimentID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{bq}
 
 			uris := append(tt.uris, "gs://fake-bucket/autoload/v1/experiment/datatype/YYYY/MM/DD/*")
-			err = c.Load(context.Background(), ds, tableID, uris...)
+			err = c.Load(context.Background(), ds, datatypeID, uris...)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.Load() error = %v, wantErr = %v", err, tt.wantErr)
 			}
