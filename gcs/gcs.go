@@ -25,13 +25,13 @@ var (
 const (
 	prefix           = "autoload/v1/"
 	schemaFileSuffix = ".table.json"
-	rawPrefix        = "raw_"
 )
 
 // Client is used to interact with Google Cloud Storage.
 type Client struct {
 	Buckets    []*storagex.Bucket
 	mlabBucket string
+	project    string
 }
 
 // Dir represents a GCS directory.
@@ -46,7 +46,7 @@ type StorageReader interface {
 }
 
 // NewClient returns a new Client for the specified bucket names.
-func NewClient(c *storage.Client, names []string, mlabBucket string) *Client {
+func NewClient(c *storage.Client, names []string, mlabBucket, project string) *Client {
 	buckets := make([]*storagex.Bucket, 0)
 	for _, name := range names {
 		bh := c.Bucket(name)
@@ -56,6 +56,7 @@ func NewClient(c *storage.Client, names []string, mlabBucket string) *Client {
 	return &Client{
 		Buckets:    buckets,
 		mlabBucket: mlabBucket,
+		project:    project,
 	}
 }
 
@@ -78,20 +79,17 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 			}
 
 			dir, filename := path.Split(o.Name)
-			exp := path.Base(dir)
-			if attrs.Name == c.mlabBucket {
-				exp = rawPrefix + exp
-			}
 
-			s := &api.Datatype{
+			opts := api.DatatypeOpts{
 				Name:        strings.TrimSuffix(filename, schemaFileSuffix),
-				Experiment:  exp,
+				Experiment:  path.Base(dir),
 				Location:    attrs.Location,
 				Schema:      file,
 				UpdatedTime: o.ObjectAttrs.Updated,
 				Bucket:      bucket,
 			}
-			datatypes = append(datatypes, s)
+
+			datatypes = append(datatypes, c.getDatatype(attrs.Name, opts))
 			return nil
 		})
 	}
@@ -99,11 +97,19 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 	return datatypes
 }
 
+func (c *Client) getDatatype(bucketName string, opts api.DatatypeOpts) *api.Datatype {
+	switch bucketName {
+	case c.mlabBucket:
+		return api.NewMlabDatatype(opts)
+	default:
+		return api.NewThirdPartyDatatype(opts, c.project)
+	}
+}
+
 // GetDirs returns all the directory paths for a datatype within a start (inclusive) and
 // end (exclusive) date.
 func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end string) ([]Dir, error) {
-	exp := strings.TrimPrefix(dt.Experiment, rawPrefix)
-	prefix := path.Join(prefix, exp, dt.Name)
+	prefix := path.Join(prefix, dt.Experiment, dt.Name)
 	it := dt.Bucket.Objects(ctx, &storage.Query{
 		Prefix:      prefix,
 		StartOffset: path.Join(prefix, start),

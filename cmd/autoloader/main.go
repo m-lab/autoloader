@@ -40,8 +40,8 @@ func main() {
 
 	storage, err := storage.NewClient(mainCtx)
 	rtx.Must(err, "Failed to create storage client")
-	defer storage.Close()
-	gcs := gcs.NewClient(storage, bucketNames, mlabBucket)
+	defer storage.Close() 
+	gcs := gcs.NewClient(storage, bucketNames, mlabBucket, project)
 
 	bigquery, err := bigquery.NewClient(mainCtx, project)
 	rtx.Must(err, "Failed to create BigQuery client")

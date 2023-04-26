@@ -18,7 +18,8 @@ import (
 )
 
 var (
-	testBucket = "test-bucket"
+	testBucket  = "test-bucket"
+	testProject = "test-project"
 )
 
 func TestClient_GetDatatypes(t *testing.T) {
@@ -45,16 +46,17 @@ func TestClient_GetDatatypes(t *testing.T) {
 			},
 			names: []string{testBucket},
 			want: []*api.Datatype{
-				{
-					Name:        "datatype1",
-					Experiment:  "experiment1",
-					Location:    "US",
-					Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
-					UpdatedTime: updated,
-					Bucket: &storagex.Bucket{
-						BucketHandle: &storage.BucketHandle{},
-					},
-				},
+				api.NewThirdPartyDatatype(
+					api.DatatypeOpts{
+						Name:        "datatype1",
+						Experiment:  "experiment1",
+						Location:    "US",
+						Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
+						UpdatedTime: updated,
+						Bucket: &storagex.Bucket{
+							BucketHandle: &storage.BucketHandle{},
+						},
+					}, testProject),
 			},
 		},
 		{
@@ -80,26 +82,28 @@ func TestClient_GetDatatypes(t *testing.T) {
 			names:      []string{"archive-mlab-sandbox", "archive-non-mlab"},
 			mlabBucket: "archive-mlab-sandbox",
 			want: []*api.Datatype{
-				{
-					Name:        "datatype1",
-					Experiment:  "raw_experiment1",
-					Location:    "US",
-					Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
-					UpdatedTime: updated,
-					Bucket: &storagex.Bucket{
-						BucketHandle: &storage.BucketHandle{},
-					},
-				},
-				{
-					Name:        "datatype2",
-					Experiment:  "experiment2",
-					Location:    "US",
-					Schema:      testingx.MustReadFile(t, "testdata/experiment2/datatype2.table.json"),
-					UpdatedTime: updated,
-					Bucket: &storagex.Bucket{
-						BucketHandle: &storage.BucketHandle{},
-					},
-				},
+				api.NewMlabDatatype(
+					api.DatatypeOpts{
+						Name:        "datatype1",
+						Experiment:  "experiment1",
+						Location:    "US",
+						Schema:      testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
+						UpdatedTime: updated,
+						Bucket: &storagex.Bucket{
+							BucketHandle: &storage.BucketHandle{},
+						},
+					}),
+				api.NewThirdPartyDatatype(
+					api.DatatypeOpts{
+						Name:        "datatype2",
+						Experiment:  "experiment2",
+						Location:    "US",
+						Schema:      testingx.MustReadFile(t, "testdata/experiment2/datatype2.table.json"),
+						UpdatedTime: updated,
+						Bucket: &storagex.Bucket{
+							BucketHandle: &storage.BucketHandle{},
+						},
+					}, testProject),
 			},
 		},
 		{
@@ -125,7 +129,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			})
 			testingx.Must(t, err, "error initializing GCS server")
 			defer server.Stop()
-			c := NewClient(server.Client(), tt.names, tt.mlabBucket)
+			c := NewClient(server.Client(), tt.names, tt.mlabBucket, testProject)
 
 			got := c.GetDatatypes(context.TODO())
 			if !cmp.Equal(got, tt.want, cmpopts.IgnoreUnexported(storagex.Bucket{}, storage.BucketHandle{})) {
@@ -178,7 +182,7 @@ func TestGetDirs(t *testing.T) {
 				},
 			},
 			dt:    "datatype1",
-			exp:   "raw_experiment1",
+			exp:   "experiment1",
 			start: "2023/03/05",
 			end:   "2023/03/07",
 			want: []Dir{
@@ -290,10 +294,12 @@ func TestGetDirs(t *testing.T) {
 			client := server.Client()
 
 			dt := &api.Datatype{
-				Name:       tt.dt,
-				Experiment: tt.exp,
-				Bucket: &storagex.Bucket{
-					BucketHandle: client.Bucket(testBucket),
+				DatatypeOpts: api.DatatypeOpts{
+					Name:       tt.dt,
+					Experiment: tt.exp,
+					Bucket: &storagex.Bucket{
+						BucketHandle: client.Bucket(testBucket),
+					},
 				},
 			}
 
@@ -327,10 +333,12 @@ func TestGetDirs_InvalidRegex(t *testing.T) {
 	client := server.Client()
 
 	dt := &api.Datatype{
-		Name:       "datatype1",
-		Experiment: "experiment1",
-		Bucket: &storagex.Bucket{
-			BucketHandle: client.Bucket(testBucket),
+		DatatypeOpts: api.DatatypeOpts{
+			Name:       "datatype1",
+			Experiment: "experiment1",
+			Bucket: &storagex.Bucket{
+				BucketHandle: client.Bucket(testBucket),
+			},
 		},
 	}
 

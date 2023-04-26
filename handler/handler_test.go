@@ -104,9 +104,13 @@ func TestClient_Load(t *testing.T) {
 		{
 			name: "success",
 			storage: &fakeStorage{
-				datatypes: []*api.Datatype{{
-					Name: "datatype",
-				}},
+				datatypes: []*api.Datatype{
+					api.NewThirdPartyDatatype(
+						api.DatatypeOpts{
+							Name: "datatype",
+						}, "",
+					),
+				},
 				dirs: map[string][]gcs.Dir{
 					"datatype": {{
 						Path: "fake-dir-path",
@@ -127,9 +131,13 @@ func TestClient_Load(t *testing.T) {
 		{
 			name: "processing-error",
 			storage: &fakeStorage{
-				datatypes: []*api.Datatype{{
-					Name: "datatype",
-				}},
+				datatypes: []*api.Datatype{
+					api.NewThirdPartyDatatype(
+						api.DatatypeOpts{
+							Name: "datatype",
+						}, "",
+					),
+				},
 				dirs: map[string][]gcs.Dir{
 					"datatype": {{
 						Path: "fake-dir-path",
@@ -176,10 +184,10 @@ func TestClient_processDatatype(t *testing.T) {
 				},
 			},
 			bq: &fakeBQ{},
-			dt: &api.Datatype{
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
 				Name:       "datatype",
 				Experiment: "dataset",
-			},
+			}, ""),
 			wantCreate: 2,
 			wantUpdate: 0,
 			wantLoad:   1,
@@ -195,10 +203,10 @@ func TestClient_processDatatype(t *testing.T) {
 				},
 			},
 			bq: &fakeBQ{},
-			dt: &api.Datatype{
+			dt: api.NewMlabDatatype(api.DatatypeOpts{
 				Name:       "datatype",
-				Experiment: "raw_dataset",
-			},
+				Experiment: "dataset",
+			}),
 			wantCreate: 2,
 			wantUpdate: 0,
 			wantLoad:   1,
@@ -215,10 +223,10 @@ func TestClient_processDatatype(t *testing.T) {
 				datasets: map[string]*bqfake.Dataset{"dataset": bqfake.NewDataset(nil, nil, nil)},
 				tables:   map[string]*bigquery.TableMetadata{"datatype": {}},
 			},
-			dt: &api.Datatype{
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
 				Name:       "datatype",
 				Experiment: "dataset",
-			},
+			}, ""),
 			wantCreate: 0,
 			wantUpdate: 0,
 			wantLoad:   0,
@@ -239,11 +247,11 @@ func TestClient_processDatatype(t *testing.T) {
 					LastModifiedTime: time.Now().Add(-time.Hour),
 				}},
 			},
-			dt: &api.Datatype{
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
 				Name:        "datatype",
 				Experiment:  "dataset",
 				UpdatedTime: time.Now().Add(-time.Hour),
-			},
+			}, ""),
 			wantCreate: 0,
 			wantUpdate: 1,
 			wantLoad:   1,
@@ -257,9 +265,9 @@ func TestClient_processDatatype(t *testing.T) {
 				},
 			},
 			bq: &fakeBQ{createDsErr: errors.New("failed to create dataset")},
-			dt: &api.Datatype{
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
 				Name: "datatype",
-			},
+			}, ""),
 			wantCreate: 0,
 			wantUpdate: 0,
 			wantLoad:   0,
@@ -273,9 +281,9 @@ func TestClient_processDatatype(t *testing.T) {
 				},
 			},
 			bq: &fakeBQ{createTblErr: errors.New("failed to create table")},
-			dt: &api.Datatype{
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
 				Name: "datatype",
-			},
+			}, ""),
 			wantCreate: 1,
 			wantUpdate: 0,
 			wantLoad:   0,
@@ -293,11 +301,11 @@ func TestClient_processDatatype(t *testing.T) {
 				}},
 				updateErr: errors.New("failed to update schema"),
 			},
-			dt: &api.Datatype{
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
 				Name:        "datatype",
 				Experiment:  "dataset",
 				UpdatedTime: time.Now().Add(-time.Hour),
-			},
+			}, ""),
 			wantCreate: 0,
 			wantUpdate: 0,
 			wantLoad:   0,
@@ -333,7 +341,6 @@ func TestClient_load(t *testing.T) {
 		name     string
 		storage  *fakeStorage
 		bq       *fakeBQ
-		dt       *api.Datatype
 		wantLoad int
 		wantErr  bool
 	}{
@@ -348,10 +355,7 @@ func TestClient_load(t *testing.T) {
 					},
 				},
 			},
-			bq: &fakeBQ{},
-			dt: &api.Datatype{
-				Name: "datatype",
-			},
+			bq:       &fakeBQ{},
 			wantLoad: 3,
 			wantErr:  false,
 		},
@@ -360,10 +364,7 @@ func TestClient_load(t *testing.T) {
 			storage: &fakeStorage{
 				dirs: map[string][]gcs.Dir{},
 			},
-			bq: &fakeBQ{},
-			dt: &api.Datatype{
-				Name: "datatype",
-			},
+			bq:       &fakeBQ{},
 			wantLoad: 0,
 			wantErr:  true,
 		},
@@ -376,10 +377,7 @@ func TestClient_load(t *testing.T) {
 					}},
 				},
 			},
-			bq: &fakeBQ{loadErr: errors.New("failed to load file")},
-			dt: &api.Datatype{
-				Name: "datatype",
-			},
+			bq:       &fakeBQ{loadErr: errors.New("failed to load file")},
 			wantLoad: 0,
 			wantErr:  true,
 		},
@@ -388,8 +386,11 @@ func TestClient_load(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewClient(tt.storage, tt.bq)
+			dt := api.NewMlabDatatype(api.DatatypeOpts{
+				Name: "datatype",
+			})
 
-			if err := c.load(context.Background(), nil, tt.dt, periodOpts("annually")); (err != nil) != tt.wantErr {
+			if err := c.load(context.Background(), nil, dt, periodOpts("annually")); (err != nil) != tt.wantErr {
 				t.Errorf("Client.load() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 
