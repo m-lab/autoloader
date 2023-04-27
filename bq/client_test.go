@@ -48,7 +48,7 @@ func TestClient_GetDataset(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bq, err := bqfake.NewClient(context.Background(), projectID, tt.datasets)
 			testingx.Must(t, err, "failed to create fake bq client")
-			c := &Client{bq}
+			c := &Client{Client: bq}
 
 			got, err := c.GetDataset(context.Background(), experimentID)
 			if (err != nil) != tt.wantErr {
@@ -106,7 +106,7 @@ func TestClient_CreateDataset(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): tt.dataset})
 			testingx.Must(t, err, "failed to create fake bq client")
-			c := &Client{bq}
+			c := &Client{Client: bq}
 
 			got, err := c.CreateDataset(context.Background(), tt.dt)
 			if (err != nil) != tt.wantErr {
@@ -152,7 +152,7 @@ func TestClient_GetTableMetadata(t *testing.T) {
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{datatypeID: table}, nil, nil)
 			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{experimentID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
-			c := &Client{bq}
+			c := &Client{Client: bq}
 
 			got, err := c.GetTableMetadata(context.Background(), ds, datatypeID)
 			if (err != nil) != tt.wantErr {
@@ -243,7 +243,7 @@ func TestClient_CreateTable(t *testing.T) {
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tt.dt.Table(): table}, nil, nil)
 			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): ds})
 			testingx.Must(t, err, "failed to create fake bq client")
-			c := &Client{bq}
+			c := &Client{Client: bq}
 
 			got, err := c.CreateTable(context.Background(), ds, tt.dt)
 			if (err != nil) != tt.wantErr {
@@ -313,9 +313,69 @@ func TestClient_UpdateSchema(t *testing.T) {
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tt.dt.Table(): table}, nil, nil)
 			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): ds})
 			testingx.Must(t, err, "failed to create fake bq client")
-			c := &Client{bq}
+			c := &Client{Client: bq, ViewClient: bq}
 
 			err = c.UpdateSchema(context.Background(), ds, tt.dt)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Client.UpdateSchema() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestClient_UpdateSchemaAndView(t *testing.T) {
+	dt := api.NewMlabDatatype(api.DatatypeOpts{
+		Name:       datatypeID,
+		Experiment: experimentID,
+		Schema:     testingx.MustReadFile(t, "./testdata/schema.json"),
+	})
+
+	opts := bqfake.TableOpts{
+		Dataset: bqfake.Dataset{},
+		Name:    dt.Table(),
+		Metadata: &bigquery.TableMetadata{
+			Type: "TABLE",
+		},
+	}
+	table := bqfake.NewTable(opts)
+	ds := bqfake.NewDataset(map[string]*bqfake.Table{dt.Table(): table},
+		&bqiface.DatasetMetadata{DatasetMetadata: bigquery.DatasetMetadata{Name: dt.Dataset()}}, nil)
+
+	tests := []struct {
+		name    string
+		viewds  *bqfake.Dataset
+		wantErr bool
+	}{
+		{
+			name: "success",
+			viewds: bqfake.NewDataset(
+				map[string]*bqfake.Table{dt.ViewTable(): bqfake.NewTable(bqfake.TableOpts{
+					Dataset: bqfake.Dataset{},
+					Name:    dt.ViewTable(),
+					Metadata: &bigquery.TableMetadata{
+						Type: "VIEW",
+					},
+				})},
+				&bqiface.DatasetMetadata{}, nil),
+			wantErr: false,
+		},
+		{
+			name:    "dataset-not-found",
+			viewds:  bqfake.NewDataset(nil, nil, nil),
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{
+				dt.Dataset():     ds,
+				dt.ViewDataset(): tt.viewds,
+			})
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{Client: bq, ViewClient: bq}
+
+			err = c.UpdateSchema(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("Client.UpdateSchema() error = %v, wantErr = %v", err, tt.wantErr)
 			}
@@ -371,7 +431,7 @@ func TestClient_Load(t *testing.T) {
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{datatypeID: table}, nil, nil)
 			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{experimentID: ds})
 			testingx.Must(t, err, "failed to create fake bq client")
-			c := &Client{bq}
+			c := &Client{Client: bq}
 
 			uris := append(tt.uris, "gs://fake-bucket/autoload/v1/experiment/datatype/YYYY/MM/DD/*")
 			err = c.Load(context.Background(), ds, datatypeID, uris...)
