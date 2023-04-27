@@ -12,8 +12,9 @@ import (
 // the data is loaded.
 // The `start` field is inclusive and the `end` field is exclusive.
 type LoadOptions struct {
-	start string // inclusive.
-	end   string // exclusive.
+	start  string // inclusive.
+	end    string // exclusive.
+	period string
 }
 
 const (
@@ -36,7 +37,7 @@ func getOpts(values url.Values) (*LoadOptions, error) {
 		if startErr != nil || endErr != nil {
 			return nil, errDate
 		}
-		return &LoadOptions{s, e}, nil
+		return &LoadOptions{s, e, "custom"}, nil
 	}
 
 	// Time period provided.
@@ -56,13 +57,13 @@ func periodOpts(p string) *LoadOptions {
 
 	switch p {
 	case "daily":
-		return &LoadOptions{yesterday, tomorrow}
+		return &LoadOptions{yesterday, tomorrow, p}
 	case "monthly":
-		return &LoadOptions{month, yesterday}
+		return &LoadOptions{month, yesterday, p}
 	case "annually":
-		return &LoadOptions{start, month}
+		return &LoadOptions{start, month, p}
 	case "everything":
-		return &LoadOptions{start, tomorrow}
+		return &LoadOptions{start, tomorrow, p}
 	}
 
 	return nil
