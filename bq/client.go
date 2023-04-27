@@ -16,10 +16,7 @@ type Client struct {
 
 // NewClient returns a new instance of Client.
 func NewClient(c *bigquery.Client, vc *bigquery.Client) *Client {
-	return &Client{
-		Client:     bqiface.AdaptClient(c),
-		ViewClient: bqiface.AdaptClient(vc),
-	}
+	return &Client{Client: bqiface.AdaptClient(c), ViewClient: bqiface.AdaptClient(vc)}
 }
 
 // GetDataset returns a handle to the input dataset and an error indicating whether the

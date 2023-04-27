@@ -265,9 +265,10 @@ func TestClient_CreateTable(t *testing.T) {
 
 func TestClient_UpdateSchema(t *testing.T) {
 	tests := []struct {
-		name    string
-		dt      *api.Datatype
-		wantErr bool
+		name      string
+		dt        *api.Datatype
+		updateErr error
+		wantErr   bool
 	}{
 		{
 			name: "success-mlab",
@@ -300,14 +301,24 @@ func TestClient_UpdateSchema(t *testing.T) {
 			}),
 			wantErr: true,
 		},
+		{
+			name: "update-err",
+			dt: api.NewThirdPartyDatatype(api.DatatypeOpts{
+				Name:   datatypeID,
+				Schema: testingx.MustReadFile(t, "./testdata/schema.json"),
+			}, ""),
+			updateErr: errors.New("update error"),
+			wantErr:   true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			opts := bqfake.TableOpts{
-				Dataset:  bqfake.Dataset{},
-				Name:     tt.dt.Table(),
-				Metadata: &bigquery.TableMetadata{},
+				Dataset:   bqfake.Dataset{},
+				Name:      tt.dt.Table(),
+				Metadata:  &bigquery.TableMetadata{},
+				UpdateErr: tt.updateErr,
 			}
 			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tt.dt.Table(): table}, nil, nil)
@@ -373,7 +384,7 @@ func TestClient_UpdateSchemaAndView(t *testing.T) {
 				dt.ViewDataset(): tt.viewds,
 			})
 			testingx.Must(t, err, "failed to create fake bq client")
-			c := &Client{Client: bq, ViewClient: bq}
+			c := Client{Client: bq, ViewClient: bq}
 
 			err = c.UpdateSchema(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
