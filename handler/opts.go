@@ -12,9 +12,9 @@ import (
 // the data is loaded.
 // The `start` field is inclusive and the `end` field is exclusive.
 type LoadOptions struct {
-	start  string // inclusive.
-	end    string // exclusive.
-	period string
+	start   string // inclusive.
+	end     string // exclusive.
+	jobType string
 }
 
 const (

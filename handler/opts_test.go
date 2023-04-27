@@ -22,7 +22,7 @@ func Test_getOpts(t *testing.T) {
 		{
 			name:    "success-range",
 			values:  url.Values{"start": {"2023/01/01"}, "end": {"2023/03/29"}},
-			want:    &LoadOptions{start: "2023/01/01", end: "2023/03/29", period: "custom"},
+			want:    &LoadOptions{start: "2023/01/01", end: "2023/03/29", jobType: "custom"},
 			wantErr: false,
 		},
 		{
