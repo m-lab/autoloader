@@ -360,7 +360,7 @@ func TestClient_UpdateSchemaAndView(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name:    "dataset-not-found",
+			name:    "error",
 			viewds:  bqfake.NewDataset(nil, nil, nil),
 			wantErr: false,
 		},
