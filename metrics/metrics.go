@@ -31,4 +31,14 @@ var (
 		},
 		[]string{"experiment", "datatype", "operation", "status"},
 	)
+
+	// LoadedDates keeps track of the most recently loaded date for each datatype
+	// and job period type (e.g., daily).
+	LoadedDates = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "autoloader_loaded_dates",
+			Help: "Most recently loaded date for each datatype and job period type.",
+		},
+		[]string{"experiment", "datatype", "period", "status"},
+	)
 )

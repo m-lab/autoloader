@@ -2,7 +2,8 @@ package metrics
 
 import "testing"
 
-func TestLinltMetrics(t *testing.T) {
+func TestLintMetrics(t *testing.T) {
 	AutoloadDuration.WithLabelValues("experiment", "datatype", "status")
 	BigQueryOperationsTotal.WithLabelValues("experiment", "datatype", "operation", "status")
+	LoadedDates.WithLabelValues("experiment", "datatype", "period", "status")
 }
