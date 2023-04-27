@@ -147,10 +147,10 @@ func (c *Client) load(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype,
 		if e != nil {
 			err = e
 			log.Printf("failed to load %s to BigQuery table %s: %v", dir.Path, table, e)
-			metrics.LoadedDates.WithLabelValues(dt.Dataset(), dt.Table(), opts.jobType, "error").Set(float64(dir.Date.Unix()))
+			metrics.LoadedDates.WithLabelValues(dt.Dataset(), dt.Table(), opts.period, "error").Set(float64(dir.Date.Unix()))
 			continue
 		}
-		metrics.LoadedDates.WithLabelValues(dt.Dataset(), dt.Table(), opts.jobType, "OK").Set(float64(dir.Date.Unix()))
+		metrics.LoadedDates.WithLabelValues(dt.Dataset(), dt.Table(), opts.period, "OK").Set(float64(dir.Date.Unix()))
 	}
 
 	log.Printf("finished loading data to BigQuery table %s.%s for dates %s to %s, duration: %s",
