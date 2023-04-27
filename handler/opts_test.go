@@ -22,7 +22,7 @@ func Test_getOpts(t *testing.T) {
 		{
 			name:    "success-range",
 			values:  url.Values{"start": {"2023/01/01"}, "end": {"2023/03/29"}},
-			want:    &LoadOptions{start: "2023/01/01", end: "2023/03/29"},
+			want:    &LoadOptions{start: "2023/01/01", end: "2023/03/29", period: "custom"},
 			wantErr: false,
 		},
 		{
@@ -77,6 +77,7 @@ func Test_periodOpts(t *testing.T) {
 			want: &LoadOptions{
 				now.AddDate(0, 0, -1).Format(timex.YYYYMMDDWithSlash),
 				now.AddDate(0, 0, 1).Format(timex.YYYYMMDDWithSlash),
+				"daily",
 			},
 		},
 		{
@@ -85,6 +86,7 @@ func Test_periodOpts(t *testing.T) {
 			want: &LoadOptions{
 				now.AddDate(0, -1, 0).Format(timex.YYYYMMDDWithSlash),
 				now.AddDate(0, 0, -1).Format(timex.YYYYMMDDWithSlash),
+				"monthly",
 			},
 		},
 		{
@@ -93,6 +95,7 @@ func Test_periodOpts(t *testing.T) {
 			want: &LoadOptions{
 				start,
 				now.AddDate(0, -1, 0).Format(timex.YYYYMMDDWithSlash),
+				"annually",
 			},
 		},
 		{
@@ -101,6 +104,7 @@ func Test_periodOpts(t *testing.T) {
 			want: &LoadOptions{
 				start,
 				now.AddDate(0, 0, 1).Format(timex.YYYYMMDDWithSlash),
+				"everything",
 			},
 		},
 		{
