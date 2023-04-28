@@ -3,6 +3,7 @@ package bq
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
@@ -17,6 +18,25 @@ var (
 	experimentID = "experiment1"
 	datatypeID   = "datatype1"
 )
+
+func TestNewClient(t *testing.T) {
+	bqMain, err := bigquery.NewClient(context.Background(), "foo")
+	testingx.Must(t, err, "failed to create fake BQ client")
+	defer bqMain.Close()
+	bqView, err := bigquery.NewClient(context.Background(), "bar")
+	testingx.Must(t, err, "failed to create fake BQ view client")
+	defer bqView.Close()
+	got := NewClient(bqMain, bqView)
+
+	want := &Client{
+		Client:     bqiface.AdaptClient(bqMain),
+		ViewClient: bqiface.AdaptClient(bqView),
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("NewClient() = %v, want = %v", got, want)
+	}
+}
 
 func TestClient_GetDataset(t *testing.T) {
 	ds := bqfake.NewDataset(nil, &bqiface.DatasetMetadata{
