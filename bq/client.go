@@ -2,6 +2,7 @@ package bq
 
 import (
 	"context"
+	"log"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
@@ -98,7 +99,8 @@ func (c *Client) updateView(ctx context.Context, dt *api.Datatype, bqSchema bigq
 	_, err := ds.Metadata(ctx)
 	if err != nil {
 		// Dataset doesn't exist. Nothing to update.
-		// Error could also mean insufficient permissions.
+		// NOTE: Error could also be caused by insufficient permissions.
+		log.Printf("failed to get BigQuery view dataset %s: %v", dt.ViewDataset(), err)
 		return nil
 	}
 
@@ -106,7 +108,7 @@ func (c *Client) updateView(ctx context.Context, dt *api.Datatype, bqSchema bigq
 	_, err = view.Metadata(ctx)
 	if err != nil {
 		// View doesn't exist. Nothing to update.
-		// Error could also mean insufficient permissions.
+		log.Printf("failed to get BigQuery view table %s.%s: %v", dt.ViewDataset(), dt.ViewTable(), err)
 		return nil
 	}
 
