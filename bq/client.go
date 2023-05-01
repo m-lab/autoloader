@@ -2,6 +2,7 @@ package bq
 
 import (
 	"context"
+	"log"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
@@ -11,12 +12,15 @@ import (
 // Client is used to perform BigQuery operations.
 type Client struct {
 	bqiface.Client
+	ViewClient bqiface.Client
 }
 
-// NewClient returns a new instance of Client. Operations performed via the Client
-// take place within the specified GCP `project` argument.
-func NewClient(c *bigquery.Client) *Client {
-	return &Client{bqiface.AdaptClient(c)}
+// NewClient returns a new instance of Client.
+func NewClient(c *bigquery.Client, vc *bigquery.Client) *Client {
+	return &Client{
+		Client:     bqiface.AdaptClient(c),
+		ViewClient: bqiface.AdaptClient(vc),
+	}
 }
 
 // GetDataset returns a handle to the input dataset and an error indicating whether the
@@ -81,6 +85,34 @@ func (c *Client) UpdateSchema(ctx context.Context, ds bqiface.Dataset, dt *api.D
 
 	t := ds.Table(dt.Table())
 	_, err = t.Update(ctx, bigquery.TableMetadataToUpdate{
+		Schema: bqSchema,
+	}, "")
+	if err != nil {
+		return err
+	}
+
+	return c.updateView(ctx, dt, bqSchema)
+}
+
+func (c *Client) updateView(ctx context.Context, dt *api.Datatype, bqSchema bigquery.Schema) error {
+	ds := c.ViewClient.Dataset(dt.ViewDataset())
+	_, err := ds.Metadata(ctx)
+	if err != nil {
+		// Dataset doesn't exist. Nothing to update.
+		// NOTE: Error could also be caused by insufficient permissions.
+		log.Printf("failed to get BigQuery view dataset %s: %v", dt.ViewDataset(), err)
+		return nil
+	}
+
+	view := ds.Table(dt.ViewTable())
+	_, err = view.Metadata(ctx)
+	if err != nil {
+		// View doesn't exist. Nothing to update.
+		log.Printf("failed to get BigQuery view table %s.%s: %v", dt.ViewDataset(), dt.ViewTable(), err)
+		return nil
+	}
+
+	_, err = view.Update(ctx, bigquery.TableMetadataToUpdate{
 		Schema: bqSchema,
 	}, "")
 	return err

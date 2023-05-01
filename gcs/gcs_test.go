@@ -131,7 +131,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			defer server.Stop()
 			c := NewClient(server.Client(), tt.names, tt.mlabBucket, testProject)
 
-			got := c.GetDatatypes(context.TODO())
+			got := c.GetDatatypes(context.Background())
 			if !cmp.Equal(got, tt.want, cmpopts.IgnoreUnexported(storagex.Bucket{}, storage.BucketHandle{})) {
 				t.Errorf("Client.GetDatatypes() = %v, want %v", got, tt.want)
 			}
@@ -304,7 +304,7 @@ func TestGetDirs(t *testing.T) {
 			}
 
 			c := &Client{}
-			got, err := c.GetDirs(context.TODO(), dt, tt.start, tt.end)
+			got, err := c.GetDirs(context.Background(), dt, tt.start, tt.end)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Client.GetDirs() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -348,7 +348,7 @@ func TestGetDirs_InvalidRegex(t *testing.T) {
 	defer func() { datePattern = oldPattern }()
 
 	c := &Client{}
-	_, err = c.GetDirs(context.TODO(), dt, "2023/03/05", "2023/03/07")
+	_, err = c.GetDirs(context.Background(), dt, "2023/03/05", "2023/03/07")
 	if err == nil {
 		t.Errorf("Client.GetDirs() error = %v, wantErr != nil", err)
 		return
@@ -373,7 +373,7 @@ func TestReadFileSuccess(t *testing.T) {
 	client := server.Client()
 	obj := client.Bucket(testBucket).Object("foo")
 
-	got, err := readFile(context.TODO(), obj)
+	got, err := readFile(context.Background(), obj)
 	if err != nil {
 		t.Errorf("readFile() error = %v, wantErr = false", err)
 	}
@@ -383,7 +383,7 @@ func TestReadFileSuccess(t *testing.T) {
 }
 
 func TestReadFileError(t *testing.T) {
-	got, err := readFile(context.TODO(), &fakeErrReader{})
+	got, err := readFile(context.Background(), &fakeErrReader{})
 	if err == nil {
 		t.Errorf("readFile() error = nil, wantErr = true")
 	}
