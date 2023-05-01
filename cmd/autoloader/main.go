@@ -51,7 +51,7 @@ func main() {
 
 	bqView := bqMain
 	if project != viewProject {
-		bqView, err := bigquery.NewClient(mainCtx, viewProject)
+		bqView, err = bigquery.NewClient(mainCtx, viewProject)
 		rtx.Must(err, "Failed to create BigQuery view client")
 		defer bqView.Close()
 	}

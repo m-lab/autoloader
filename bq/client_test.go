@@ -342,7 +342,7 @@ func TestClient_UpdateSchema(t *testing.T) {
 			}
 			table := bqfake.NewTable(opts)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{tt.dt.Table(): table}, nil, nil)
-			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): ds})
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{tt.dt.Dataset(): ds})
 			testingx.Must(t, err, "failed to create fake bq client")
 			c := &Client{Client: bq, ViewClient: bq}
 
@@ -399,7 +399,7 @@ func TestClient_UpdateSchemaAndView(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			bq, err := bqfake.NewClient(context.TODO(), projectID, map[string]*bqfake.Dataset{
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{
 				dt.Dataset():     ds,
 				dt.ViewDataset(): tt.viewds,
 			})
