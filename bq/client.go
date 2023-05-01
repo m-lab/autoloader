@@ -98,6 +98,7 @@ func (c *Client) updateView(ctx context.Context, dt *api.Datatype, bqSchema bigq
 	_, err := ds.Metadata(ctx)
 	if err != nil {
 		// Dataset doesn't exist. Nothing to update.
+		// Error could also mean insufficient permissions.
 		return nil
 	}
 
@@ -105,6 +106,7 @@ func (c *Client) updateView(ctx context.Context, dt *api.Datatype, bqSchema bigq
 	_, err = view.Metadata(ctx)
 	if err != nil {
 		// View doesn't exist. Nothing to update.
+		// Error could also mean insufficient permissions.
 		return nil
 	}
 
