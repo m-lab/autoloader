@@ -63,11 +63,11 @@ func (c *Client) Load(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 		err := c.processDatatype(ctx, dt, opts)
 		if err != nil {
-			metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, "error").Observe(time.Since(t).Seconds())
+			metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, opts.period, "error").Observe(time.Since(t).Seconds())
 			errs = append(errs, fmt.Sprintf("failed to autoload %s.%s: %s", dt.Experiment, dt.Name, err.Error()))
 			continue
 		}
-		metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, "OK").Observe(time.Since(t).Seconds())
+		metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, opts.period, "OK").Observe(time.Since(t).Seconds())
 	}
 
 	if len(errs) != 0 {
