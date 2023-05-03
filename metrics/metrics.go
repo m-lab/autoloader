@@ -19,7 +19,7 @@ var (
 				10000, 21500, 46400,
 			},
 		},
-		[]string{"experiment", "datatype", "status"},
+		[]string{"experiment", "datatype", "period", "status"},
 	)
 
 	// BigQueryOperationsTotal counts the number of create, update, and load operations
