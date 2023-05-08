@@ -34,7 +34,7 @@ steps:
   - -c
   - |-
     sed -i -e 's/{{COMMIT_SHA}}/'${COMMIT_SHA}'/' \
-           -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
+           -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/' \
            -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \
            -e 's/{{GCP_PROJECT}}/'$_GCP_PROJECT'/' \
            -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/' \
