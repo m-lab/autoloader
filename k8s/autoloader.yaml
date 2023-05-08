@@ -31,7 +31,9 @@ spec:
         image: gcr.io/{{PROJECT_ID}}/autoloader:{{COMMIT_SHA}}
         args:
         - -listenaddr=:8080
-        - -project={{PROJECT_ID}}
+        - -bq-project={{BQ_PROJECT}}
+        - -view-project={{VIEW_PROJECT}}
+        - -gcp-project={{GCP_PROJECT}}
         - -mlab-bucket={{MLAB_BUCKET}}
         - -buckets={{BUCKETS}}
         - -prometheusx.listen-address=:9990
