@@ -33,7 +33,7 @@ spec:
         - -listenaddr=:8080
         - -bq-project={{PROJECT_ID}}
         - -view-project={{VIEW_PROJECT}}
-        - -gcp-project={{GCP_PROJECT}}
+        - -gcs-project={{GCS_PROJECT}}
         - -mlab-bucket={{MLAB_BUCKET}}
         - -buckets={{BUCKETS}}
         - -prometheusx.listen-address=:9990

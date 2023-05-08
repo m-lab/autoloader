@@ -19,7 +19,7 @@ var (
 	listenAddr          string
 	bqProject           string
 	viewProject         string
-	gcpProject          string
+	gcsProject          string
 	mlabBucket          string
 	bucketNames         flagx.StringArray
 	mainCtx, mainCancel = context.WithCancel(context.Background())
@@ -29,7 +29,7 @@ func init() {
 	flag.StringVar(&listenAddr, "listenaddr", ":8080", "Address to listen on")
 	flag.StringVar(&bqProject, "bq-project", "mlab-sandbox", "BigQuery project environment variable")
 	flag.StringVar(&viewProject, "view-project", "mlab-sandbox", "BigQuery project for views")
-	flag.StringVar(&gcpProject, "gcp-project", "mlab-sandbox", "GCP project")
+	flag.StringVar(&gcsProject, "gcs-project", "mlab-sandbox", "GCS project")
 	flag.StringVar(&mlabBucket, "mlab-bucket", "", "Archive bucket name containing data from M-Lab's platform")
 	flag.Var(&bucketNames, "buckets", "Archive bucket names in Google Cloud Storage")
 }
@@ -45,7 +45,7 @@ func main() {
 	storage, err := storage.NewClient(mainCtx)
 	rtx.Must(err, "Failed to create storage client")
 	defer storage.Close()
-	gcs := gcs.NewClient(storage, bucketNames, mlabBucket, gcpProject)
+	gcs := gcs.NewClient(storage, bucketNames, mlabBucket, gcsProject)
 
 	bqMain, err := bigquery.NewClient(mainCtx, bqProject)
 	rtx.Must(err, "Failed to create BigQuery client")
