@@ -37,8 +37,9 @@ func (c *Client) CreateDataset(ctx context.Context, dt *api.Datatype) (bqiface.D
 	ds := c.Dataset(dt.Dataset())
 	err := ds.Create(ctx, &bqiface.DatasetMetadata{
 		DatasetMetadata: bigquery.DatasetMetadata{
-			Name:     dt.Dataset(),
-			Location: dt.Location,
+			Name: dt.Dataset(),
+			// TODO(github.com/m-lab/gcp-config/issues/73): Fix bucket location.
+			Location: "US",
 		},
 	})
 	return ds, err
