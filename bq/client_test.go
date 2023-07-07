@@ -472,3 +472,46 @@ func TestClient_Load(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_jobErrors(t *testing.T) {
+	err1 := &bigquery.Error{
+		Message: "Error1",
+	}
+	err2 := &bigquery.Error{
+		Message: "Error2",
+	}
+	tests := []struct {
+		name    string
+		status  *bigquery.JobStatus
+		wantErr bool
+	}{
+		{
+			name:    "no-error",
+			status:  &bigquery.JobStatus{},
+			wantErr: false,
+		},
+		{
+			name: "one-error",
+			status: &bigquery.JobStatus{
+				Errors: []*bigquery.Error{err1},
+			},
+			wantErr: true,
+		},
+		{
+			name: "multiple-errors",
+			status: &bigquery.JobStatus{
+				Errors: []*bigquery.Error{err1, err2},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := jobErrors(tt.status)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("jobErrors() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+		})
+	}
+}
