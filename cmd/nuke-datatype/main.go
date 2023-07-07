@@ -43,6 +43,10 @@ func main() {
 	}
 	defer bqclient.Close()
 
+	if dryrun {
+		log.Println("NOTE: dryrun mode! Use -dryrun=false to delete data.")
+	}
+
 	for _, dt := range datatypes {
 		fields := strings.Split(dt, "/")
 		if len(fields) != 2 {
