@@ -526,6 +526,7 @@ func TestClient_jobErrors(t *testing.T) {
 			if !ok {
 				t.Fatal("jobErrors() failed to cast returned error")
 			}
+
 			gotNum := len(u.Unwrap())
 			if gotNum != tt.wantNum {
 				t.Fatalf("jobErrors() gotNum = %d, wantNum = %d", gotNum, tt.wantNum)
