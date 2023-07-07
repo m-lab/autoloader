@@ -472,3 +472,65 @@ func TestClient_Load(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_jobErrors(t *testing.T) {
+	err1 := &bigquery.Error{
+		Message: "Error1",
+	}
+	err2 := &bigquery.Error{
+		Message: "Error2",
+	}
+	tests := []struct {
+		name    string
+		status  *bigquery.JobStatus
+		wantErr bool
+		wantNum int
+	}{
+		{
+			name:    "no-error",
+			status:  &bigquery.JobStatus{},
+			wantErr: false,
+		},
+		{
+			name: "one-error",
+			status: &bigquery.JobStatus{
+				Errors: []*bigquery.Error{err1},
+			},
+			wantErr: true,
+			wantNum: 1,
+		},
+		{
+			name: "multiple-errors",
+			status: &bigquery.JobStatus{
+				Errors: []*bigquery.Error{err1, err2},
+			},
+			wantErr: true,
+			wantNum: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := jobErrors(tt.status)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("jobErrors() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr {
+				return
+			}
+
+			u, ok := err.(interface {
+				Unwrap() []error
+			})
+			if !ok {
+				t.Fatal("jobErrors() failed to cast returned error")
+			}
+
+			gotNum := len(u.Unwrap())
+			if gotNum != tt.wantNum {
+				t.Fatalf("jobErrors() gotNum = %d, wantNum = %d", gotNum, tt.wantNum)
+			}
+		})
+	}
+}

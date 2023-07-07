@@ -2,6 +2,7 @@ package bq
 
 import (
 	"context"
+	"errors"
 	"log"
 
 	"cloud.google.com/go/bigquery"
@@ -145,5 +146,17 @@ func (c *Client) Load(ctx context.Context, ds bqiface.Dataset, name string, uri 
 		return err
 	}
 
-	return status.Err()
+	if status.Err() != nil {
+		return jobErrors(status)
+	}
+
+	return nil
+}
+
+func jobErrors(status *bigquery.JobStatus) error {
+	var err error
+	for _, e := range status.Errors {
+		err = errors.Join(err, e)
+	}
+	return err
 }
