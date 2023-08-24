@@ -43,7 +43,7 @@ steps:
     /builder/kubectl.bash apply -f k8s/autoloader.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
 
 # The "hourly" job runs every 3 hours and loads the data for the last day.
 - name: gcr.io/cloud-builders/kubectl
@@ -59,7 +59,7 @@ steps:
     /builder/kubectl.bash apply -f autoloader-hourly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
 
 # The "weekly" job runs once per month and loads the data from the last month
 # to the last day.
@@ -76,7 +76,7 @@ steps:
     /builder/kubectl.bash apply -f autoloader-weekly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
 
 # The "monthly" job runs once per month and loads the data from the beginning of
 # the archive to the last month.
@@ -93,4 +93,4 @@ steps:
     /builder/kubectl.bash apply -f autoloader-monthly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=data-processing
+  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
