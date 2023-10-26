@@ -4,12 +4,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/m-lab/autoloader/api"
 	"github.com/m-lab/go/storagex"
 )
 
 var (
-	moosOpts = DatatypeOpts{
-		Datatype:     "ndt7",
+	moosOpts = api.DatatypeOpts{
+		Name:         "ndt7",
 		Experiment:   "ndt",
 		Organization: "mlab",
 		Version:      "v2",
@@ -19,8 +20,8 @@ var (
 		Bucket:       &storagex.Bucket{},
 	}
 
-	pyodOpts = DatatypeOpts{
-		Datatype:     "thirdpartydt",
+	pyodOpts = api.DatatypeOpts{
+		Name:         "thirdpartydt",
 		Experiment:   "thirdpartyexp",
 		Organization: "mlab",
 		Version:      "v2",
@@ -30,8 +31,8 @@ var (
 		Bucket:       &storagex.Bucket{},
 	}
 
-	byosOpts = DatatypeOpts{
-		Datatype:     "ndt7",
+	byosOpts = api.DatatypeOpts{
+		Name:         "ndt7",
 		Experiment:   "ndt",
 		Organization: "thirdpartyorg",
 		Version:      "v2",
@@ -41,8 +42,8 @@ var (
 		Bucket:       &storagex.Bucket{},
 	}
 
-	byodOpts = DatatypeOpts{
-		Datatype:     "thirdpartydt",
+	byodOpts = api.DatatypeOpts{
+		Name:         "thirdpartydt",
 		Experiment:   "thirdpartyexp",
 		Organization: "thirdpartyorg",
 		Version:      "v2",
@@ -56,7 +57,7 @@ var (
 func TestNamer_Dataset(t *testing.T) {
 	tests := []struct {
 		name string
-		opts DatatypeOpts
+		opts api.DatatypeOpts
 		sp   string
 		want string
 	}{
@@ -99,7 +100,7 @@ func TestNamer_Dataset(t *testing.T) {
 func TestNamer_Table(t *testing.T) {
 	tests := []struct {
 		name string
-		opts DatatypeOpts
+		opts api.DatatypeOpts
 		sp   string
 		want string
 	}{
@@ -142,7 +143,7 @@ func TestNamer_Table(t *testing.T) {
 func TestNamer_ViewDataset(t *testing.T) {
 	tests := []struct {
 		name string
-		opts DatatypeOpts
+		opts api.DatatypeOpts
 		sp   string
 		want string
 	}{
@@ -185,7 +186,7 @@ func TestNamer_ViewDataset(t *testing.T) {
 func TestNamer_ViewTable(t *testing.T) {
 	tests := []struct {
 		name string
-		opts DatatypeOpts
+		opts api.DatatypeOpts
 		sp   string
 		want string
 	}{

@@ -2,12 +2,14 @@ package v2
 
 import (
 	"fmt"
+
+	"github.com/m-lab/autoloader/api"
 )
 
 // NewNamer provides a new instance of Namer.
-func NewNamer(opts DatatypeOpts, sp string) Namer {
-	return Namer{
-		Datatype:     opts.Datatype,
+func NewNamer(opts api.DatatypeOpts, sp string) *Namer {
+	return &Namer{
+		Datatype:     opts.Name,
 		Experiment:   opts.Experiment,
 		Organization: opts.Organization,
 		Version:      opts.Version,
