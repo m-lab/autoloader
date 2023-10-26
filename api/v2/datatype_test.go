@@ -7,11 +7,12 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
+	"github.com/m-lab/autoloader/api"
 	"github.com/m-lab/go/storagex"
 )
 
-var opts = DatatypeOpts{
-	Datatype:     "datatype",
+var opts = api.DatatypeOpts{
+	Name:         "datatype",
 	Experiment:   "experiment",
 	Organization: "organization",
 	Version:      "version",
@@ -22,7 +23,7 @@ var opts = DatatypeOpts{
 }
 
 func TestNewMlabDatatype(t *testing.T) {
-	want := &Datatype{
+	want := &api.Datatype{
 		DatatypeOpts: opts,
 		Namer:        NewNamer(opts, "mlab"),
 	}
@@ -34,7 +35,7 @@ func TestNewMlabDatatype(t *testing.T) {
 }
 
 func TestNewBYODatatype(t *testing.T) {
-	want := &Datatype{
+	want := &api.Datatype{
 		DatatypeOpts: opts,
 		Namer:        NewNamer(opts, "subproject"),
 	}
