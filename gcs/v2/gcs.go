@@ -15,10 +15,6 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-var (
-	datePattern = `/\d{4}/[01]\d/[0123]\d`
-)
-
 const (
 	prefix           = "autoload/v2/"
 	schemaFileSuffix = ".table.json"
@@ -48,14 +44,14 @@ func NewClient(c *storage.Client, names []string) *ClientV2 {
 	}
 }
 
-// GetDatatypes gets a list of datatypes for all buckets.
+// GetDatatypes gets a list of datatypes for the ClientV2's buckets.
 func (c *ClientV2) GetDatatypes(ctx context.Context) []*api.Datatype {
 	datatypes := make([]*api.Datatype, 0)
 
 	for _, bucket := range c.Buckets {
 		orgs, err := getBucketOrgs(ctx, bucket)
 		if err != nil {
-			log.Printf("could not get organizations for bucket: %v", err)
+			log.Printf("failed to get organizations for bucket: %v", err)
 			continue
 		}
 		b := &BucketV2{Bucket: bucket, Organizations: orgs}
@@ -63,7 +59,7 @@ func (c *ClientV2) GetDatatypes(ctx context.Context) []*api.Datatype {
 		b.Walk(ctx, path.Join(prefix, "tables"), func(schema *storagex.Object) error {
 			dts, err := getDatatypes(ctx, b, schema)
 			if err != nil {
-				log.Printf("could not get datatypes for schema: %v", err)
+				log.Printf("failed to get datatypes for schema: %v", err)
 				return err
 			}
 

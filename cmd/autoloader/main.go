@@ -60,15 +60,15 @@ func main() {
 	}
 
 	bq := bq.NewClient(bqMain, bqView)
-	hdlr := handler.NewClient(gcs, bq)
+	hndlr := handler.NewClient(gcs, bq)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/load", http.HandlerFunc(hdlr.Load))
+	mux.HandleFunc("/v1/load", http.HandlerFunc(hndlr.Load))
 
 	// V2 API.
 	gcsV2 := gcsv2.NewClient(storage, bucketNames)
-	hdlrV2 := handler.NewClient(gcsV2, bq)
-	mux.HandleFunc("/v2/load", http.HandlerFunc(hdlrV2.Load))
+	hndlrV2 := handler.NewClient(gcsV2, bq)
+	mux.HandleFunc("/v2/load", http.HandlerFunc(hndlrV2.Load))
 
 	srv := &http.Server{
 		Addr:    listenAddr,
