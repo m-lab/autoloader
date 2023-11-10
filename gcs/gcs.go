@@ -112,7 +112,8 @@ func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end strin
 	return GetDirs(ctx, dt, path.Join(prefix, dt.Experiment, dt.Name), start, end)
 }
 
-// GetDirs iterates over a set of directories and returns those matching a directory regular expression.
+// GetDirs iterates over a set of directories and returns those whose path matches "<p>/YYYY/MM/DD"
+// within a start (inclusive) and end (exclusive) date.
 func GetDirs(ctx context.Context, dt *api.Datatype, p, start, end string) ([]Dir, error) {
 	it := dt.Bucket.Objects(ctx, &storage.Query{
 		Prefix:      p,

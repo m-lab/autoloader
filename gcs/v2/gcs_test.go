@@ -13,6 +13,7 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/m-lab/autoloader/api"
 	apiv2 "github.com/m-lab/autoloader/api/v2"
+	"github.com/m-lab/autoloader/gcs"
 	"github.com/m-lab/go/storagex"
 	"github.com/m-lab/go/testingx"
 )
@@ -270,4 +271,125 @@ func sortDatatypes(dts []*api.Datatype) {
 	sort.Slice(dts, func(i, j int) bool {
 		return dts[i].Name < dts[j].Name
 	})
+}
+
+func TestClientV2_GetDirs(t *testing.T) {
+	tests := []struct {
+		name    string
+		objs    []fakestorage.Object
+		start   string
+		end     string
+		dt      *api.Datatype
+		want    []gcs.Dir
+		wantErr bool
+	}{
+		{
+			name: "single-obj",
+			objs: []fakestorage.Object{
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "organization1/experiment1/datatype1/2023/03/06/filename.jsonl.gz",
+					},
+				},
+			},
+			dt: &api.Datatype{
+				DatatypeOpts: api.DatatypeOpts{
+					Name:         "datatype1",
+					Experiment:   "experiment1",
+					Organization: "organization1",
+				},
+			},
+			start: "2023/03/05",
+			end:   "2023/03/07",
+			want: []gcs.Dir{
+				{
+					Path: "gs://" + path.Join(testBucket, prefix, "organization1/experiment1/datatype1/2023/03/06/*"),
+					Date: time.Date(2023, 03, 06, 0, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+		{
+			name: "multiple-objs",
+			objs: []fakestorage.Object{
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "organization1/experiment1/datatype1/2023/03/05/filename.jsonl.gz",
+					},
+				},
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "organization1/experiment1/datatype1/2023/03/06/filename.jsonl.gz",
+					},
+				},
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: testBucket,
+						Name:       prefix + "other-organization/experiment1/datatype1/2023/03/06/filename2.jsonl.gz",
+					},
+				},
+			},
+			dt: &api.Datatype{
+				DatatypeOpts: api.DatatypeOpts{
+					Name:         "datatype1",
+					Experiment:   "experiment1",
+					Organization: "organization1",
+				},
+			},
+			start: "2023/03/05",
+			end:   "2023/03/07",
+			want: []gcs.Dir{
+				{
+					Path: "gs://" + path.Join(testBucket, prefix, "organization1/experiment1/datatype1/2023/03/05/*"),
+					Date: time.Date(2023, 03, 05, 0, 0, 0, 0, time.UTC),
+				},
+				{
+					Path: "gs://" + path.Join(testBucket, prefix, "organization1/experiment1/datatype1/2023/03/06/*"),
+					Date: time.Date(2023, 03, 06, 0, 0, 0, 0, time.UTC),
+				},
+			},
+		},
+		{
+			name: "inexistent-bucket",
+			objs: []fakestorage.Object{},
+			dt: &api.Datatype{
+				DatatypeOpts: api.DatatypeOpts{
+					Name:         "datatype1",
+					Experiment:   "experiment1",
+					Organization: "organization1",
+				},
+			},
+			start:   "2023/03/05",
+			end:     "2023/03/07",
+			wantErr: true,
+			want:    []gcs.Dir{},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, err := fakestorage.NewServerWithOptions(fakestorage.Options{
+				InitialObjects: tt.objs,
+			})
+			testingx.Must(t, err, "error initializing GCS server")
+			defer server.Stop()
+			client := server.Client()
+
+			tt.dt.Bucket = &storagex.Bucket{
+				BucketHandle: client.Bucket(testBucket),
+			}
+
+			c := &ClientV2{}
+			got, err := c.GetDirs(context.Background(), tt.dt, tt.start, tt.end)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ClientV2.GetDirs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if !cmp.Equal(got, tt.want, cmpopts.EquateEmpty()) {
+				t.Errorf("ClientV2.GetDirs() = %v, want %v", got, tt.want)
+			}
+		})
+	}
 }
