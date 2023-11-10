@@ -63,6 +63,7 @@ func (c *ClientV2) GetDatatypes(ctx context.Context) []*api.Datatype {
 		b.Walk(ctx, path.Join(prefix, "tables"), func(schema *storagex.Object) error {
 			dts, err := getDatatypes(ctx, b, schema)
 			if err != nil {
+				log.Printf("could not get datatypes for schema: %v", err)
 				return err
 			}
 
@@ -74,6 +75,7 @@ func (c *ClientV2) GetDatatypes(ctx context.Context) []*api.Datatype {
 	return datatypes
 }
 
+// getBucketOrgs gets the list of organizations uploading data to a bucket.
 func getBucketOrgs(ctx context.Context, b *storagex.Bucket) ([]string, error) {
 	orgs := make([]string, 0)
 
@@ -92,10 +94,6 @@ func getBucketOrgs(ctx context.Context, b *storagex.Bucket) ([]string, error) {
 			return nil, err
 		}
 
-		if attr.Prefix == "" {
-			continue
-		}
-
 		parts := strings.Split(attr.Prefix, "/")
 		if len(parts) != 4 || parts[2] == "tables" {
 			continue
@@ -104,6 +102,7 @@ func getBucketOrgs(ctx context.Context, b *storagex.Bucket) ([]string, error) {
 	}
 }
 
+// getDatatypes gets the list of datatypes for a schema.
 func getDatatypes(ctx context.Context, b *BucketV2, schema *storagex.Object) ([]*api.Datatype, error) {
 	file, err := gcs.ReadFile(ctx, schema.ObjectHandle)
 	if err != nil || len(file) == 0 {
@@ -138,6 +137,7 @@ func getDatatypes(ctx context.Context, b *BucketV2, schema *storagex.Object) ([]
 	return dts, nil
 }
 
+// getDatatype creates a single datatype based on its project.
 func getDatatype(bucketName string, opts api.DatatypeOpts) *api.Datatype {
 	proj := strings.TrimPrefix(bucketName, "archive-")
 	switch proj {
