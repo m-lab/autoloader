@@ -11,9 +11,9 @@ import (
 
 // SchemaPath interprets the syntax of a datatype's schema path in GCS.
 type SchemaPath struct {
-	Datatype      string
-	Experiment    string
-	Organizations []string
+	Datatype      string   // Datatype name.
+	Experiment    string   // Experiment name.
+	Organizations []string // Organizations uploading data for the datatype.
 }
 
 // NewSchemaPath returns a new SchemaPath object.
@@ -44,13 +44,15 @@ func NewSchemaPath(ctx context.Context, b *BucketV2, schemaPath string) (*Schema
 func inBandSchemaOrgs(ctx context.Context, b *BucketV2, exp, dt string) []string {
 	orgs := make([]string, 0)
 
-	for _, org := range b.orgs {
+	for _, org := range b.Organizations {
+		// Get iterator for "autoload/v2/<organization>/<experiment>/<datatype>/".
 		p := path.Join(prefix, org, exp, dt) + "/"
 		it := b.Objects(ctx, &storage.Query{
 			Prefix:    p,
 			Delimiter: "/",
 		})
 
+		// Check if path exists.
 		_, err := it.Next()
 		if err != nil {
 			continue

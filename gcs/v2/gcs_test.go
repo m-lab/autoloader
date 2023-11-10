@@ -36,6 +36,12 @@ func TestClient_GetDatatypes(t *testing.T) {
 					},
 					Content: testingx.MustReadFile(t, "testdata/experiment1/datatype1.table.json"),
 				},
+				{
+					ObjectAttrs: fakestorage.ObjectAttrs{
+						BucketName: "archive-mlab-sandbox",
+						Name:       path.Join(prefix, "mlab/experiment1/datatype1/2023/03/06/filename.jsonl.gz"),
+					},
+				},
 			},
 			names: []string{"archive-mlab-sandbox"},
 			want: []*api.Datatype{
@@ -66,8 +72,6 @@ func TestClient_GetDatatypes(t *testing.T) {
 			c := NewClient(server.Client(), tt.names)
 
 			got := c.GetDatatypes(context.Background())
-			//fmt.Printf("%+v\n", got[0])
-			//fmt.Printf("%+v\n", tt.want[0])
 			if !cmp.Equal(got, tt.want, cmpopts.IgnoreUnexported(storagex.Bucket{}, storage.BucketHandle{})) {
 				t.Errorf("Client.GetDatatypes() = %v, want %v", got, tt.want)
 			}

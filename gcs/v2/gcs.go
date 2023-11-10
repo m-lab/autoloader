@@ -3,6 +3,7 @@ package v2
 import (
 	"context"
 	"fmt"
+	"log"
 	"path"
 	"strings"
 
@@ -30,8 +31,8 @@ type ClientV2 struct {
 
 // BucketV2 represents a V2 GCS bucket.
 type BucketV2 struct {
-	*storagex.Bucket
-	orgs []string
+	*storagex.Bucket          // Bucket performs storage.BucketHandle operations.
+	Organizations    []string // Organizations uploading data to the bucket.
 }
 
 // NewClient returns a new Client for the specified bucket names.
@@ -52,11 +53,12 @@ func (c *ClientV2) GetDatatypes(ctx context.Context) []*api.Datatype {
 	datatypes := make([]*api.Datatype, 0)
 
 	for _, bucket := range c.Buckets {
-		bktOrgs, err := getBucketOrgs(ctx, bucket)
+		orgs, err := getBucketOrgs(ctx, bucket)
 		if err != nil {
+			log.Printf("could not get organizations for bucket: %v", err)
 			continue
 		}
-		b := &BucketV2{Bucket: bucket, orgs: bktOrgs}
+		b := &BucketV2{Bucket: bucket, Organizations: orgs}
 
 		b.Walk(ctx, path.Join(prefix, "tables"), func(schema *storagex.Object) error {
 			dts, err := getDatatypes(ctx, b, schema)

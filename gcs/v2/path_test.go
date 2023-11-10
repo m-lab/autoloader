@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/fsouza/fake-gcs-server/fakestorage"
+	"github.com/m-lab/go/storagex"
 	"github.com/m-lab/go/testingx"
 )
 
@@ -17,6 +18,7 @@ func TestNewPath(t *testing.T) {
 		name       string
 		schemaPath string
 		objs       []fakestorage.Object
+		orgs       []string
 		want       *SchemaPath
 		wantErr    bool
 	}{
@@ -53,10 +55,23 @@ func TestNewPath(t *testing.T) {
 					},
 				},
 			},
+			orgs: []string{"organization1", "organization2", "organization3"},
 			want: &SchemaPath{
 				Experiment:    "experiment1",
 				Datatype:      "datatype1",
 				Organizations: []string{"organization1", "organization2"},
+			},
+			wantErr: false,
+		},
+		{
+			name:       "out-of-band-no-data",
+			schemaPath: path.Join(prefix, "tables/experiment1/datatype1.table.json"),
+			objs:       []fakestorage.Object{},
+			orgs:       []string{"organization1", "organization2", "organization3"},
+			want: &SchemaPath{
+				Experiment:    "experiment1",
+				Datatype:      "datatype1",
+				Organizations: []string{},
 			},
 			wantErr: false,
 		},
@@ -74,12 +89,15 @@ func TestNewPath(t *testing.T) {
 			})
 			testingx.Must(t, err, "error initializing GCS server")
 			defer server.Stop()
-			// client := server.Client()
-			// bucket := &storagex.Bucket{
-			// 	BucketHandle: client.Bucket(testBucket),
-			// }
+			client := server.Client()
+			bucket := &BucketV2{
+				Bucket: &storagex.Bucket{
+					BucketHandle: client.Bucket(testBucket),
+				},
+				Organizations: tt.orgs,
+			}
 
-			got, err := NewSchemaPath(context.Background(), nil, tt.schemaPath)
+			got, err := NewSchemaPath(context.Background(), bucket, tt.schemaPath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewPath() error = %v, wantErr %v", err, tt.wantErr)
 				return
