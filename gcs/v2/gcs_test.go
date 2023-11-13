@@ -23,7 +23,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 
 	tests := []struct {
 		name  string
-		names []string
+		buckets []string
 		objs  []fakestorage.Object
 		want  []*api.Datatype
 	}{
@@ -62,7 +62,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 					},
 				},
 			},
-			names: []string{"archive-mlab-sandbox"},
+			buckets: []string{"archive-mlab-sandbox"},
 			want: []*api.Datatype{
 				apiv2.NewMlabDatatype(
 					api.DatatypeOpts{
@@ -127,7 +127,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 					},
 				},
 			},
-			names: []string{"archive-mlab-autojoin"},
+			buckets: []string{"archive-mlab-autojoin"},
 			want: []*api.Datatype{
 				apiv2.NewBYODatatype(
 					api.DatatypeOpts{
@@ -194,7 +194,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 					},
 				},
 			},
-			names: []string{"archive-mlab-thirdparty"},
+			buckets: []string{"archive-mlab-thirdparty"},
 			want: []*api.Datatype{
 				apiv2.NewBYODatatype(
 					api.DatatypeOpts{
@@ -228,13 +228,13 @@ func TestClient_GetDatatypes(t *testing.T) {
 		},
 		{
 			name:  "inexistent-bucket",
-			names: []string{"archive-not-existent"},
+			buckets: []string{"archive-not-existent"},
 			objs:  []fakestorage.Object{},
 			want:  []*api.Datatype{},
 		},
 		{
 			name:  "invalid-schema-file",
-			names: []string{"archive-mlab-sandbox"},
+			buckets: []string{"archive-mlab-sandbox"},
 			objs: []fakestorage.Object{
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
@@ -256,7 +256,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			})
 			testingx.Must(t, err, "error initializing GCS server")
 			defer server.Stop()
-			c := NewClient(server.Client(), tt.names)
+			c := NewClient(server.Client(), tt.buckets)
 
 			got := c.GetDatatypes(context.Background())
 			sortDatatypes(got)

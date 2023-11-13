@@ -34,14 +34,14 @@ func NewSchemaPath(ctx context.Context, b *BucketV2, schemaPath string) (*Schema
 			Datatype:   strings.TrimSuffix(parts[4], schemaFileSuffix),
 			Experiment: parts[3],
 		}
-		p.Organizations = inBandSchemaOrgs(ctx, b, p.Experiment, p.Datatype)
+		p.Organizations = datatypeOrgs(ctx, b, p.Experiment, p.Datatype)
 		return p, nil
 	default:
 		return nil, fmt.Errorf("invalid GCS path %s", schemaPath)
 	}
 }
 
-func inBandSchemaOrgs(ctx context.Context, b *BucketV2, exp, dt string) []string {
+func datatypeOrgs(ctx context.Context, b *BucketV2, exp, dt string) []string {
 	orgs := make([]string, 0)
 
 	for _, org := range b.Organizations {
