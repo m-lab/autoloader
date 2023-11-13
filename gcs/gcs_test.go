@@ -373,7 +373,7 @@ func TestReadFileSuccess(t *testing.T) {
 	client := server.Client()
 	obj := client.Bucket(testBucket).Object("foo")
 
-	got, err := readFile(context.Background(), obj)
+	got, err := ReadFile(context.Background(), obj)
 	if err != nil {
 		t.Errorf("readFile() error = %v, wantErr = false", err)
 	}
@@ -383,7 +383,7 @@ func TestReadFileSuccess(t *testing.T) {
 }
 
 func TestReadFileError(t *testing.T) {
-	got, err := readFile(context.Background(), &fakeErrReader{})
+	got, err := ReadFile(context.Background(), &fakeErrReader{})
 	if err == nil {
 		t.Errorf("readFile() error = nil, wantErr = true")
 	}

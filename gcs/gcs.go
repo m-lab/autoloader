@@ -68,7 +68,7 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 
 	for _, bucket := range c.Buckets {
 		bucket.Walk(ctx, prefix, func(o *storagex.Object) error {
-			file, err := readFile(ctx, o.ObjectHandle)
+			file, err := ReadFile(ctx, o.ObjectHandle)
 			if err != nil || len(file) == 0 {
 				return fmt.Errorf("invalid schema file under %s", o.Name)
 			}
@@ -109,15 +109,19 @@ func (c *Client) getDatatype(bucketName string, opts api.DatatypeOpts) *api.Data
 // GetDirs returns all the directory paths for a datatype within a start (inclusive) and
 // end (exclusive) date.
 func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end string) ([]Dir, error) {
-	prefix := path.Join(prefix, dt.Experiment, dt.Name)
+	return GetDirs(ctx, dt, path.Join(prefix, dt.Experiment, dt.Name), start, end)
+}
+
+// GetDirs iterates over a set of directories and returns those whose path matches "<p>/YYYY/MM/DD"
+// within a start (inclusive) and end (exclusive) date.
+func GetDirs(ctx context.Context, dt *api.Datatype, p, start, end string) ([]Dir, error) {
 	it := dt.Bucket.Objects(ctx, &storage.Query{
-		Prefix:      prefix,
-		StartOffset: path.Join(prefix, start),
-		EndOffset:   path.Join(prefix, end),
+		Prefix:      p,
+		StartOffset: path.Join(p, start),
+		EndOffset:   path.Join(p, end),
 	})
 
-	// Create match of the form autoload/v1/<Experiment>/<Datatype>/YYYY/MM/DD.
-	dirMatch, err := regexp.Compile(prefix + datePattern)
+	dirMatch, err := regexp.Compile(p + datePattern)
 	if err != nil {
 		log.Println("failed to create regular expression:", err)
 		return nil, err
@@ -149,7 +153,7 @@ func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end strin
 		dirNames.Add(dirPath)
 
 		// Extract date from directory (YYYY/MM/DD).
-		date := strings.TrimPrefix(dirPath, prefix+"/")
+		date := strings.TrimPrefix(dirPath, p+"/")
 		format, _ := time.Parse(timex.YYYYMMDDWithSlash, date)
 		dir := Dir{
 			Path: "gs://" + path.Join(attr.Bucket, dirPath, "/*"),
@@ -159,7 +163,8 @@ func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end strin
 	}
 }
 
-func readFile(ctx context.Context, obj StorageReader) ([]byte, error) {
+// ReadFile reads a StorageReader object and returns its contents as an array of bytes.
+func ReadFile(ctx context.Context, obj StorageReader) ([]byte, error) {
 	reader, err := obj.NewReader(ctx)
 	if err != nil {
 		return nil, err

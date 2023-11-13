@@ -9,6 +9,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/m-lab/autoloader/bq"
 	"github.com/m-lab/autoloader/gcs"
+	gcsv2 "github.com/m-lab/autoloader/gcs/v2"
 	"github.com/m-lab/autoloader/handler"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/prometheusx"
@@ -59,11 +60,15 @@ func main() {
 	}
 
 	bq := bq.NewClient(bqMain, bqView)
-
-	handler := handler.NewClient(gcs, bq)
+	hndlr := handler.NewClient(gcs, bq)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/load", http.HandlerFunc(handler.Load))
+	mux.HandleFunc("/v1/load", http.HandlerFunc(hndlr.Load))
+
+	// V2 API.
+	gcsV2 := gcsv2.NewClient(storage, bucketNames)
+	hndlrV2 := handler.NewClient(gcsV2, bq)
+	mux.HandleFunc("/v2/load", http.HandlerFunc(hndlrV2.Load))
 
 	srv := &http.Server{
 		Addr:    listenAddr,
