@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"regexp"
 	"strings"
 
 	"cloud.google.com/go/storage"
@@ -13,6 +14,10 @@ import (
 	"github.com/m-lab/autoloader/gcs"
 	"github.com/m-lab/go/storagex"
 	"google.golang.org/api/iterator"
+)
+
+var (
+	project = regexp.MustCompile("(mlab|measurement)-.*")
 )
 
 const (
@@ -135,7 +140,7 @@ func getDatatypes(ctx context.Context, b *BucketV2, schema *storagex.Object) ([]
 
 // getDatatype creates a single datatype based on its project.
 func getDatatype(bucketName string, opts api.DatatypeOpts) *api.Datatype {
-	proj := strings.TrimPrefix(bucketName, "archive-")
+	proj := project.FindString(bucketName)
 	switch proj {
 	case "mlab-autojoin":
 		fallthrough
