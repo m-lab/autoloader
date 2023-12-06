@@ -1,5 +1,6 @@
 timeout: 1800s
 
+steps:
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy the autoloader"
   entrypoint: /bin/bash
