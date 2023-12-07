@@ -15,7 +15,7 @@ steps:
            -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/' \
            -e 's/{{BUCKETS}}/'$_BUCKETS'/' \
            k8s/autoloader.yaml
-    /builder/kubectl.bash apply -f /k8s/autoloader.yaml
+    /builder/kubectl.bash apply -f k8s/autoloader.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
