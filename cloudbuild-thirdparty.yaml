@@ -1,32 +1,6 @@
 timeout: 1800s
 
-options:
-  env:
-  - PROJECT_ID=$PROJECT_ID
-
 steps:
-- name: gcr.io/$PROJECT_ID/golang-cbif:1.20
-  id: "Run all unit tests"
-  args:
-  - go version
-  - go get -v -t ./...
-  - go test -v -race ./...
-  - go test -v ./...
-
-- name: gcr.io/cloud-builders/docker
-  id: "Build the autoloader docker image"
-  args: [
-    "build",
-      "-t", "gcr.io/$PROJECT_ID/autoloader:${COMMIT_SHA}",
-      "-f", "Dockerfile", "."
-  ]
-
-- name: gcr.io/cloud-builders/docker
-  id: "Push the docker container to gcr.io"
-  args: [
-    "push", "gcr.io/$PROJECT_ID/autoloader:${COMMIT_SHA}",
-  ]
-
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy the autoloader"
   entrypoint: /bin/bash
@@ -34,14 +8,14 @@ steps:
   - -c
   - |-
     sed -i -e 's/{{COMMIT_SHA}}/'${COMMIT_SHA}'/' \
-           -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/' \
+           -e 's/{{PROJECT_ID}}/mlab-oti/' \
            -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
            -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \
            -e 's/{{GCS_PROJECT}}/'$_GCS_PROJECT'/' \
            -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/' \
            -e 's/{{BUCKETS}}/'$_BUCKETS'/' \
-           /k8s/autoloader.yaml
-    /builder/kubectl.bash apply -f k8s/autoloader.yaml
+           k8s/autoloader.yaml
+    /builder/kubectl.bash apply -f /k8s/autoloader.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
@@ -56,7 +30,7 @@ steps:
     sed -e 's/{{FREQUENCY}}/hourly/' \
         -e 's/{{CRON_SCHEDULE}}/0 *\/3 * * */' \
         -e 's/{{LOAD_PERIOD}}/daily/' \
-        /k8s/autoloader-cronjob.yaml.template > autoloader-hourly-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-hourly-cronjob.yaml
     /builder/kubectl.bash apply -f autoloader-hourly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
@@ -73,7 +47,7 @@ steps:
     sed -e 's/{{FREQUENCY}}/weekly/' \
         -e 's/{{CRON_SCHEDULE}}/0 0 * * 0/' \
         -e 's/{{LOAD_PERIOD}}/monthly/' \
-        /k8s/autoloader-cronjob.yaml.template > autoloader-weekly-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-weekly-cronjob.yaml
     /builder/kubectl.bash apply -f autoloader-weekly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
@@ -90,7 +64,7 @@ steps:
     sed -e 's/{{FREQUENCY}}/monthly/' \
         -e 's/{{CRON_SCHEDULE}}/0 0 1 * */' \
         -e 's/{{LOAD_PERIOD}}/annually/' \
-        /k8s/autoloader-cronjob.yaml.template > autoloader-monthly-cronjob.yaml
+        k8s/autoloader-cronjob.yaml.template > autoloader-monthly-cronjob.yaml
     /builder/kubectl.bash apply -f autoloader-monthly-cronjob.yaml
   env:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
