@@ -26,6 +26,13 @@ spec:
       annotations:
         prometheus.io/scrape: 'true'
     spec:
+      tolerations:
+      - key: group
+        operator: Equal
+        value: "servers"
+        effect: NoSchedule
+      nodeSelector:
+        group: "servers"
       containers:
       - name: autoloader
         image: gcr.io/{{PROJECT_ID}}/autoloader:{{COMMIT_SHA}}
