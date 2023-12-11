@@ -1,6 +1,7 @@
 timeout: 1800s
 
 steps:
+# Third-party projects pull container images from the mlab-oti project.
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy the autoloader"
   entrypoint: /bin/bash
@@ -8,7 +9,7 @@ steps:
   - -c
   - |-
     sed -i -e 's/{{COMMIT_SHA}}/'${COMMIT_SHA}'/' \
-           -e 's/{{PROJECT_ID}}/mlab-sandbox/' \
+           -e 's/{{PROJECT_ID}}/mlab-oti/' \
            -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
            -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \
            -e 's/{{GCS_PROJECT}}/'$_GCS_PROJECT'/' \
