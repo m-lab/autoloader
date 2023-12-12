@@ -2,7 +2,7 @@ timeout: 1800s
 
 options:
   env:
-  - _IMAGE_TAG=${IMAGE##*:}
+  - _IMAGE_TAG=${_IMAGE##*:}
 
 steps:
 # Third-party projects pull container images from the mlab-oti project.
