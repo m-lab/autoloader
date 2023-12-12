@@ -33,7 +33,7 @@ steps:
   args:
   - -c
   - |-
-    sed -i -e 's/{{COMMIT_SHA}}/'${COMMIT_SHA}'/' \
+    sed -i -e 's/{{IMAGE_TAG}}/'${COMMIT_SHA}'/' \
            -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/' \
            -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
            -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \

@@ -28,7 +28,7 @@ spec:
     spec:
       containers:
       - name: autoloader
-        image: gcr.io/{{PROJECT_ID}}/autoloader:{{COMMIT_SHA}}
+        image: gcr.io/{{PROJECT_ID}}/autoloader:{{IMAGE_TAG}}
         args:
         - -listenaddr=:8080
         - -bq-project={{BQ_PROJECT}}
