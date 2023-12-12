@@ -42,3 +42,5 @@ spec:
             containerPort: 9990
           - name: service-port
             containerPort: 8080
+        nodeSelector:
+          gardener-node: "true"
