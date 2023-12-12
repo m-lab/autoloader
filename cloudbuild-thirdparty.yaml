@@ -2,6 +2,9 @@ timeout: 1800s
 
 steps:
 # Third-party projects pull container images from the mlab-oti project.
+# New container images are detected via a Pub/Sub message. The message
+# contains the tag, which is automatically picked up by the $_IMAGE_TAG
+# substitution to identify the image.
 - name: gcr.io/cloud-builders/kubectl
   id: "Deploy the autoloader"
   entrypoint: /bin/bash
@@ -9,7 +12,7 @@ steps:
   - -c
   - |-
     sed -i -e 's/{{IMAGE_TAG}}/'$_IMAGE_TAG'/' \
-           -e 's/{{PROJECT_ID}}/mlab-sandbox/' \
+           -e 's/{{PROJECT_ID}}/mlab-oti/' \
            -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
            -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \
            -e 's/{{GCS_PROJECT}}/'$_GCS_PROJECT'/' \
