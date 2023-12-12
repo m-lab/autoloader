@@ -9,7 +9,7 @@ steps:
   - -c
   - |-
     sed -i -e 's/{{IMAGE_TAG}}/'$_IMAGE_TAG'/' \
-           -e 's/{{PROJECT_ID}}/mlab-oti/' \
+           -e 's/{{PROJECT_ID}}/mlab-sandbox/' \
            -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
            -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \
            -e 's/{{GCS_PROJECT}}/'$_GCS_PROJECT'/' \
