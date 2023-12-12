@@ -1,9 +1,5 @@
 timeout: 1800s
 
-options:
-  env:
-  - _IMAGE_TAG=${_IMAGE##*:}
-
 steps:
 # Third-party projects pull container images from the mlab-oti project.
 - name: gcr.io/cloud-builders/kubectl
@@ -12,7 +8,7 @@ steps:
   args:
   - -c
   - |-
-    sed -i -e 's/{{IMAGE_TAG}}/'$_IMAGE_TAG'/' \
+    sed -i -e 's/{{IMAGE_TAG}}/'${_IMAGE##*:}'/' \
            -e 's/{{PROJECT_ID}}/mlab-sandbox/' \
            -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
            -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \
