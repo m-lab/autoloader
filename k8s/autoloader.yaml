@@ -28,10 +28,10 @@ spec:
     spec:
       containers:
       - name: autoloader
-        image: gcr.io/{{PROJECT_ID}}/autoloader:{{COMMIT_SHA}}
+        image: gcr.io/{{PROJECT_ID}}/autoloader:{{IMAGE_TAG}}
         args:
         - -listenaddr=:8080
-        - -bq-project={{PROJECT_ID}}
+        - -bq-project={{BQ_PROJECT}}
         - -view-project={{VIEW_PROJECT}}
         - -gcs-project={{GCS_PROJECT}}
         - -mlab-bucket={{MLAB_BUCKET}}
@@ -43,4 +43,4 @@ spec:
           - name: service-port
             containerPort: 8080
       nodeSelector:
-        gardener-node: "true"
+        processor-node: "true"
