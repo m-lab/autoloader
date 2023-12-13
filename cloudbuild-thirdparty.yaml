@@ -1,3 +1,5 @@
+# This Cloud Build configuration is triggered by Pub/Sub events from mlab-oti
+# (not push or tag events).
 timeout: 1800s
 
 steps:
