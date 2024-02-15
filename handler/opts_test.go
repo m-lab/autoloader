@@ -93,7 +93,7 @@ func Test_periodOpts(t *testing.T) {
 			name: "annually",
 			p:    "annually",
 			want: &LoadOptions{
-				start,
+				now.AddDate(-1, 0, 0).Format(timex.YYYYMMDDWithSlash),
 				now.AddDate(0, -1, 0).Format(timex.YYYYMMDDWithSlash),
 				"annually",
 			},

@@ -54,6 +54,7 @@ func periodOpts(p string) *LoadOptions {
 	tomorrow := now.AddDate(0, 0, 1).Format(timex.YYYYMMDDWithSlash)
 	yesterday := now.AddDate(0, 0, -1).Format(timex.YYYYMMDDWithSlash)
 	month := now.AddDate(0, -1, 0).Format(timex.YYYYMMDDWithSlash)
+	year := now.AddDate(-1, 0, 0).Format(timex.YYYYMMDDWithSlash)
 
 	switch p {
 	case "daily":
@@ -61,7 +62,7 @@ func periodOpts(p string) *LoadOptions {
 	case "monthly":
 		return &LoadOptions{month, yesterday, p}
 	case "annually":
-		return &LoadOptions{start, month, p}
+		return &LoadOptions{year, month, p}
 	case "everything":
 		return &LoadOptions{start, tomorrow, p}
 	}
