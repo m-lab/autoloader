@@ -17,3 +17,4 @@ spec:
             args:
             - wget
             - http://autoloader-service:8080/{{VERSION}}/load?period={{LOAD_PERIOD}}
+            - timeout=86400
