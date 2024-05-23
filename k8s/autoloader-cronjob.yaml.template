@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: autoloader-{{FREQUENCY}}-cronjo
+  name: autoloader-{{FREQUENCY}}-cronjob
 spec:
   schedule: {{CRON_SCHEDULE}}
   concurrencyPolicy: Forbid
@@ -15,5 +15,6 @@ spec:
           - name: busybox
             image: busybox
             args:
-            - wget --timeout=86400
+            - wget
+            - --timeout=86400
             - http://autoloader-service:8080/{{VERSION}}/load?period={{LOAD_PERIOD}}
