@@ -28,7 +28,7 @@ steps:
   ]
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-  id: "Setup kubectl credentials for v1 autoloader"
+  id: "v1/Setup kubectl credentials for autoloader"
   args:
   - gcloud container clusters get-credentials
     --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "$_CLUSTER_NAME"
@@ -36,7 +36,7 @@ steps:
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-  id: "Deploy the v1 autoloader"
+  id: "v1/Deploy the autoloader"
   args:
   - |-
     sed -i -e 's/{{IMAGE_TAG}}/'${COMMIT_SHA}'/'
@@ -52,7 +52,7 @@ steps:
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-  id: "Deploy v1 cron jobs"
+  id: "v1/Deploy cron jobs"
   args:
   # The "hourly" job runs every 3 hours and loads the data for the last day.
   - cp k8s/autoloader-cronjob.yaml.template autoloader-hourly-cronjob.yaml
@@ -91,7 +91,7 @@ steps:
 ## Autoloader v2
 ###################
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-  id: "Setup kubectl credentials for v2 autoloader"
+  id: "v2/Setup kubectl credentials for autoloader"
   args:
   - gcloud container clusters get-credentials
     --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "autojoin"
@@ -99,7 +99,7 @@ steps:
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-  id: "Deploy the v2 autoloader"
+  id: "v2/Deploy the autoloader"
   args:
   - |-
     sed -i -e 's/{{IMAGE_TAG}}/'${COMMIT_SHA}'/'
@@ -115,7 +115,7 @@ steps:
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-  id: "Deploy v2 cron jobs"
+  id: "v2/Deploy cron jobs"
   args:
   # The "hourly" job runs every 3 hours and loads the data for the last day.
   - cp k8s/autoloader-cronjob.yaml.template autoloader-hourly-cronjob.yaml
