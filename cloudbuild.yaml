@@ -32,6 +32,8 @@ steps:
   args:
   - gcloud container clusters get-credentials
     --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "$_CLUSTER_NAME"
+  env:
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
   id: "Deploy the v1 autoloader"
@@ -93,6 +95,8 @@ steps:
   args:
   - gcloud container clusters get-credentials
     --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "autojoin"
+  env:
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
   id: "Deploy the v2 autoloader"
