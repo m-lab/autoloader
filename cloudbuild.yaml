@@ -16,6 +16,18 @@ steps:
   - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
   - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
 
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "test kubectl"
+  env:
+    - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
+  args:
+    # Do I need to do this every time?
+    # - gcloud container clusters get-credentials --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "$_CLUSTER_NAME"
+    - kubectl get deployments
+  env:
+  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
+  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
+
 - name: gcr.io/$PROJECT_ID/golang-cbif:1.20
   id: "Run all unit tests"
   args:
