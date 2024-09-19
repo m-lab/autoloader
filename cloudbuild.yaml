@@ -17,7 +17,7 @@ steps:
   - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
 
 - name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
-  id: "test kubectl"
+  id: "test 2 kubectl"
   env:
     - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
   args:
