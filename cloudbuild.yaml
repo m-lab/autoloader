@@ -5,6 +5,17 @@ options:
   - PROJECT_ID=$PROJECT_ID
 
 steps:
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "test kubectl"
+  env:
+    - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
+  args:
+    - gcloud container clusters get-credentials --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "$_CLUSTER_NAME"
+    - kubectl get pods
+  env:
+  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
+  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
+
 - name: gcr.io/$PROJECT_ID/golang-cbif:1.20
   id: "Run all unit tests"
   args:
@@ -28,7 +39,7 @@ steps:
   ]
 
 - name: gcr.io/cloud-builders/kubectl
-  id: "Deploy the autoloader"
+  id: "Deploy the v1 autoloader"
   entrypoint: /bin/bash
   args:
   - -c
@@ -48,7 +59,7 @@ steps:
 
 # The "hourly" job runs every 3 hours and loads the data for the last day.
 - name: gcr.io/cloud-builders/kubectl
-  id: "Deploy hourly job"
+  id: "Deploy v1 hourly job"
   entrypoint: /bin/bash
   args:
   - -c
@@ -66,7 +77,7 @@ steps:
 # The "weekly" job runs once per month and loads the data from the last month
 # to the last day.
 - name: gcr.io/cloud-builders/kubectl
-  id: "Deploy weekly job"
+  id: "Deploy v1 weekly job"
   entrypoint: /bin/bash
   args:
   - -c
@@ -84,7 +95,7 @@ steps:
 # The "monthly" job runs once per month and loads the data from the beginning of
 # the archive to the last month.
 - name: gcr.io/cloud-builders/kubectl
-  id: "Deploy monthly job"
+  id: "Deploy v1 monthly job"
   entrypoint: /bin/bash
   args:
   - -c
