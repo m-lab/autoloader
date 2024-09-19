@@ -27,74 +27,125 @@ steps:
     "push", "gcr.io/$PROJECT_ID/autoloader:${COMMIT_SHA}",
   ]
 
-- name: gcr.io/cloud-builders/kubectl
-  id: "Deploy the autoloader"
-  entrypoint: /bin/bash
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "v1/Setup kubectl credentials for autoloader"
   args:
-  - -c
+  - gcloud container clusters get-credentials
+    --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "$_CLUSTER_NAME"
+  env:
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
+
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "v1/Deploy the autoloader"
+  args:
   - |-
-    sed -i -e 's/{{IMAGE_TAG}}/'${COMMIT_SHA}'/' \
-           -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/' \
-           -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/' \
-           -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/' \
-           -e 's/{{GCS_PROJECT}}/'$_GCS_PROJECT'/' \
-           -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/' \
-           -e 's/{{BUCKETS}}/'$_BUCKETS'/' \
+    sed -i -e 's/{{IMAGE_TAG}}/'${COMMIT_SHA}'/'
+           -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/'
+           -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/'
+           -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/'
+           -e 's/{{GCS_PROJECT}}/'$_GCS_PROJECT'/'
+           -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/'
+           -e 's/{{BUCKETS}}/'$_BUCKETS'/'
            k8s/autoloader.yaml
-    /builder/kubectl.bash apply -f k8s/autoloader.yaml
+  - kubectl apply -f k8s/autoloader.yaml
   env:
-  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
 
-# The "hourly" job runs every 3 hours and loads the data for the last day.
-- name: gcr.io/cloud-builders/kubectl
-  id: "Deploy hourly job"
-  entrypoint: /bin/bash
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "v1/Deploy cron jobs"
   args:
-  - -c
+  # The "hourly" job runs every 3 hours and loads the data for the last day.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-hourly-cronjob.yaml
   - |-
-    sed -e 's/{{FREQUENCY}}/hourly/' \
-        -e 's/{{CRON_SCHEDULE}}/0 *\/3 * * */' \
-        -e 's/{{VERSION}}/v1/' \
-        -e 's/{{LOAD_PERIOD}}/daily/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-hourly-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-hourly-cronjob.yaml
+    sed -i -e 's/{{FREQUENCY}}/hourly/'
+        -e 's/{{CRON_SCHEDULE}}/0 *\/3 * * */'
+        -e 's/{{VERSION}}/v1/'
+        -e 's/{{LOAD_PERIOD}}/daily/'
+        autoloader-hourly-cronjob.yaml
+  # The "weekly" job runs once per month and loads the data from the last month
+  # to the last day.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-weekly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/weekly/'
+        -e 's/{{CRON_SCHEDULE}}/0 0 * * 0/'
+        -e 's/{{VERSION}}/v1/'
+        -e 's/{{LOAD_PERIOD}}/monthly/'
+        autoloader-weekly-cronjob.yaml
+  # The "monthly" job runs once per month and loads the data from the beginning of
+  # the archive to the last month.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-monthly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/monthly/'
+        -e 's/{{CRON_SCHEDULE}}/0 0 1 * */'
+        -e 's/{{VERSION}}/v1/'
+        -e 's/{{LOAD_PERIOD}}/annually/'
+        autoloader-monthly-cronjob.yaml
+  # Apply
+  - kubectl apply -f autoloader-hourly-cronjob.yaml
+  - kubectl apply -f autoloader-weekly-cronjob.yaml
+  - kubectl apply -f autoloader-monthly-cronjob.yaml
   env:
-  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-oti
 
-# The "weekly" job runs once per month and loads the data from the last month
-# to the last day.
-- name: gcr.io/cloud-builders/kubectl
-  id: "Deploy weekly job"
-  entrypoint: /bin/bash
+###################
+## Autoloader v2
+###################
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "v2/Setup kubectl credentials for autoloader"
   args:
-  - -c
-  - |-
-    sed -e 's/{{FREQUENCY}}/weekly/' \
-        -e 's/{{CRON_SCHEDULE}}/0 0 * * 0/' \
-        -e 's/{{VERSION}}/v1/' \
-        -e 's/{{LOAD_PERIOD}}/monthly/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-weekly-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-weekly-cronjob.yaml
+  - gcloud container clusters get-credentials
+    --project="${PROJECT_ID}" --region="$_CLUSTER_REGION" "autojoin"
   env:
-  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin
 
-# The "monthly" job runs once per month and loads the data from the beginning of
-# the archive to the last month.
-- name: gcr.io/cloud-builders/kubectl
-  id: "Deploy monthly job"
-  entrypoint: /bin/bash
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "v2/Deploy the autoloader"
   args:
-  - -c
   - |-
-    sed -e 's/{{FREQUENCY}}/monthly/' \
-        -e 's/{{CRON_SCHEDULE}}/0 0 1 * */' \
-        -e 's/{{VERSION}}/v1/' \
-        -e 's/{{LOAD_PERIOD}}/annually/' \
-        k8s/autoloader-cronjob.yaml.template > autoloader-monthly-cronjob.yaml
-    /builder/kubectl.bash apply -f autoloader-monthly-cronjob.yaml
+    sed -i -e 's/{{IMAGE_TAG}}/'${COMMIT_SHA}'/'
+           -e 's/{{PROJECT_ID}}/'${PROJECT_ID}'/'
+           -e 's/{{BQ_PROJECT}}/'${PROJECT_ID}'/'
+           -e 's/{{VIEW_PROJECT}}/'$_VIEW_PROJECT'/'
+           -e 's/{{GCS_PROJECT}}/'$_GCS_PROJECT'/'
+           -e 's/{{MLAB_BUCKET}}/'$_MLAB_BUCKET'/'
+           -e 's/{{BUCKETS}}/'$_BUCKETS'/'
+           k8s/autoloader.yaml
+  - kubectl apply -f k8s/autoloader.yaml
   env:
-  - CLOUDSDK_COMPUTE_REGION=$_CLUSTER_REGION
-  - CLOUDSDK_CONTAINER_CLUSTER=$_CLUSTER_NAME
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin
+
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "v2/Deploy cron jobs"
+  args:
+  # The "hourly" job runs every 3 hours and loads the data for the last day.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-hourly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/hourly/'
+        -e 's/{{CRON_SCHEDULE}}/0 *\/3 * * */'
+        -e 's/{{VERSION}}/v2/'
+        -e 's/{{LOAD_PERIOD}}/daily/'
+        autoloader-hourly-cronjob.yaml
+  # The "weekly" job runs once per month and loads the data from the last month
+  # to the last day.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-weekly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/weekly/'
+        -e 's/{{CRON_SCHEDULE}}/0 0 * * 0/'
+        -e 's/{{VERSION}}/v2/'
+        -e 's/{{LOAD_PERIOD}}/monthly/'
+        autoloader-weekly-cronjob.yaml
+  # The "monthly" job runs once per month and loads the data from the beginning of
+  # the archive to the last month.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-monthly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/monthly/'
+        -e 's/{{CRON_SCHEDULE}}/0 0 1 * */'
+        -e 's/{{VERSION}}/v2/'
+        -e 's/{{LOAD_PERIOD}}/annually/'
+        autoloader-monthly-cronjob.yaml
+  # Apply
+  - kubectl apply -f autoloader-hourly-cronjob.yaml
+  - kubectl apply -f autoloader-weekly-cronjob.yaml
+  - kubectl apply -f autoloader-monthly-cronjob.yaml
+  env:
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin
