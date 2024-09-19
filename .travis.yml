@@ -18,4 +18,4 @@ script:
 after_success:
 # Coveralls
 # Upload coverage information for unit tests.
-- $HOME/gopath/bin/goveralls -coverprofile=_coverage.cov -service=travis-pro
+- $HOME/gopath/bin/goveralls '-ignore=cmd/*/*.go' -coverprofile=_coverage.cov -service=travis-pro
