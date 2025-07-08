@@ -71,6 +71,7 @@ func (c *Client) Load(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if len(errs) != 0 {
+		log.Printf("autoload errors:\n%s", strings.Join(errs, "\n"))
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte(strings.Join(errs, "\n")))
 		return
