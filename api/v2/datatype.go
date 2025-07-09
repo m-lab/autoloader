@@ -11,6 +11,7 @@ func NewMlabDatatype(opts api.DatatypeOpts) *api.Datatype {
 	return &api.Datatype{
 		DatatypeOpts: opts,
 		Namer:        NewNamer(opts, "mlab"),
+		UpdateSchema: true,
 	}
 }
 
@@ -20,5 +21,6 @@ func NewBYODatatype(opts api.DatatypeOpts, project string) *api.Datatype {
 	return &api.Datatype{
 		DatatypeOpts: opts,
 		Namer:        NewNamer(opts, sp),
+		UpdateSchema: true,
 	}
 }

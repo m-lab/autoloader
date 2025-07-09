@@ -93,6 +93,10 @@ func (c *Client) UpdateSchema(ctx context.Context, ds bqiface.Dataset, dt *api.D
 		return err
 	}
 
+	if !dt.UpdateView {
+		return nil
+	}
+
 	return c.updateView(ctx, dt, bqSchema)
 }
 

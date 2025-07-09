@@ -32,6 +32,7 @@ type Namer interface {
 type Datatype struct {
 	DatatypeOpts
 	Namer
+	UpdateView bool
 }
 
 // NewMlabDatatype returns a new Datatype with an MlabNamer.
