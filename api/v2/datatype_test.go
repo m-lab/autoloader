@@ -26,6 +26,7 @@ func TestNewMlabDatatype(t *testing.T) {
 	want := &api.Datatype{
 		DatatypeOpts: opts,
 		Namer:        NewNamer(opts, "mlab"),
+		UpdateView:   true,
 	}
 
 	got := NewMlabDatatype(opts)
@@ -38,6 +39,7 @@ func TestNewBYODatatype(t *testing.T) {
 	want := &api.Datatype{
 		DatatypeOpts: opts,
 		Namer:        NewNamer(opts, "subproject"),
+		UpdateView:   true,
 	}
 
 	got := NewBYODatatype(opts, "mlab-subproject")
