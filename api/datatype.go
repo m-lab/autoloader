@@ -32,6 +32,8 @@ type Namer interface {
 type Datatype struct {
 	DatatypeOpts
 	Namer
+	// UpdateView indicates whether the view should be updated in case the schema
+	// changes.
 	UpdateView bool
 }
 
