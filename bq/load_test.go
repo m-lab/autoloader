@@ -196,6 +196,10 @@ func Test_newLoadConfig(t *testing.T) {
 				WriteDisposition:        bigquery.WriteTruncate,
 				HivePartitioningOptions: tt.wantHive,
 			}
+			if tt.wantHive != nil {
+				// A hive load never creates its destination.
+				want.CreateDisposition = bigquery.CreateNever
+			}
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("newLoadConfig() = %+v, want = %+v", got, want)
 			}

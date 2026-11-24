@@ -27,6 +27,10 @@ func newLoadConfig(hivePrefix string, schema bigquery.Schema, uri ...string) big
 	}
 	if hivePrefix != "" {
 		gcsRef.Schema = schema
+		// The shared table and the staging tables always exist before a load.
+		// Without this, a load into a staging table that has just expired
+		// would re-create it without the clustering a copy job requires.
+		cfg.CreateDisposition = bigquery.CreateNever
 		cfg.HivePartitioningOptions = &bigquery.HivePartitioningOptions{
 			Mode:            bigquery.StringHivePartitioningMode,
 			SourceURIPrefix: hivePrefix,

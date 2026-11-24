@@ -70,6 +70,37 @@ func TestClient_GetDatatypes(t *testing.T) {
 			},
 		},
 		{
+			// The same experiment and datatype in a second bucket would share
+			// the destination table: only the first bucket's is kept.
+			name:    "duplicate-in-second-bucket",
+			buckets: []string{testBucket, "archive-mlab-bar"},
+			objs: []fakestorage.Object{
+				obj(testBucket, prefix+"tables/ndt/ndt7.table.json", schema),
+				obj("archive-mlab-bar", prefix+"tables/ndt/ndt7.table.json", schema),
+				obj("archive-mlab-bar", prefix+"tables/ndt/scamper2.table.json", schema),
+			},
+			want: []*api.Datatype{
+				apiv3.NewDatatype(api.DatatypeOpts{
+					Name:        "ndt7",
+					Experiment:  "ndt",
+					Version:     "v3",
+					Location:    "US",
+					Schema:      schema,
+					UpdatedTime: time.Date(2023, 02, 02, 3, 15, 0, 0, time.UTC),
+					Bucket:      &storagex.Bucket{BucketHandle: &storage.BucketHandle{}},
+				}, "gs://"+testBucket+"/autoload/v3"),
+				apiv3.NewDatatype(api.DatatypeOpts{
+					Name:        "scamper2",
+					Experiment:  "ndt",
+					Version:     "v3",
+					Location:    "US",
+					Schema:      schema,
+					UpdatedTime: time.Date(2023, 02, 02, 3, 15, 0, 0, time.UTC),
+					Bucket:      &storagex.Bucket{BucketHandle: &storage.BucketHandle{}},
+				}, "gs://archive-mlab-bar/autoload/v3"),
+			},
+		},
+		{
 			name:    "inexistent-bucket",
 			buckets: []string{"archive-not-existent"},
 			objs:    []fakestorage.Object{},
@@ -213,29 +244,41 @@ func TestGetBucketOrgs(t *testing.T) {
 
 func TestClient_GetDirs_Newest(t *testing.T) {
 	// Two objects in one directory: Newest is the creation time of the newer
-	// one, whichever is listed first.
+	// one, whether it is listed first or second.
 	older := time.Date(2026, 11, 18, 5, 0, 0, 0, time.UTC)
 	newer := time.Date(2026, 11, 20, 7, 0, 0, 0, time.UTC)
 	dir := prefix + "org=alpha/ndt/ndt7/2026/11/18/"
-	first, second := obj(testBucket, dir+"a.jsonl.gz", nil), obj(testBucket, dir+"b.jsonl.gz", nil)
-	first.Created, second.Created = newer, older
 
-	server, err := fakestorage.NewServerWithOptions(fakestorage.Options{
-		InitialObjects: []fakestorage.Object{first, second},
-	})
-	testingx.Must(t, err, "error initializing GCS server")
-	defer server.Stop()
+	tests := []struct {
+		name          string
+		first, second time.Time
+	}{
+		{name: "newer-listed-first", first: newer, second: older},
+		{name: "newer-listed-second", first: older, second: newer},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			first, second := obj(testBucket, dir+"a.jsonl.gz", nil), obj(testBucket, dir+"b.jsonl.gz", nil)
+			first.Created, second.Created = tt.first, tt.second
 
-	dt := apiv3.NewDatatype(api.DatatypeOpts{
-		Name:       "ndt7",
-		Experiment: "ndt",
-		Version:    "v3",
-		Bucket:     &storagex.Bucket{BucketHandle: server.Client().Bucket(testBucket)},
-	}, "gs://"+testBucket+"/autoload/v3")
+			server, err := fakestorage.NewServerWithOptions(fakestorage.Options{
+				InitialObjects: []fakestorage.Object{first, second},
+			})
+			testingx.Must(t, err, "error initializing GCS server")
+			defer server.Stop()
 
-	got, err := (&Client{}).GetDirs(context.Background(), dt, "2026/11/18", "2026/11/20")
-	testingx.Must(t, err, "failed to get dirs")
-	if len(got) != 1 || got[0].Org != "alpha" || !got[0].Newest.Equal(newer) {
-		t.Errorf("Client.GetDirs() = %v, want one dir of alpha with Newest %v", got, newer)
+			dt := apiv3.NewDatatype(api.DatatypeOpts{
+				Name:       "ndt7",
+				Experiment: "ndt",
+				Version:    "v3",
+				Bucket:     &storagex.Bucket{BucketHandle: server.Client().Bucket(testBucket)},
+			}, "gs://"+testBucket+"/autoload/v3")
+
+			got, err := (&Client{}).GetDirs(context.Background(), dt, "2026/11/18", "2026/11/20")
+			testingx.Must(t, err, "failed to get dirs")
+			if len(got) != 1 || got[0].Org != "alpha" || !got[0].Newest.Equal(newer) {
+				t.Errorf("Client.GetDirs() = %v, want one dir of alpha with Newest %v", got, newer)
+			}
+		})
 	}
 }

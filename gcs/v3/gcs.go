@@ -48,6 +48,8 @@ func NewClient(c *storage.Client, names []string) *Client {
 // denoted by a schema file "autoload/v3/tables/<experiment>/<datatype>.table.json".
 func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 	datatypes := make([]*api.Datatype, 0)
+	// Destination tables seen so far and the schema object that claimed them.
+	seen := map[string]string{}
 
 	for _, bucket := range c.Buckets {
 		bucket.Walk(ctx, path.Join(prefix, "tables"), func(schema *storagex.Object) error {
@@ -56,6 +58,18 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 				log.Printf("skipping v3 schema: %v", err)
 				return err
 			}
+
+			// The destination table has no bucket in its name. Two buckets
+			// with the same experiment and datatype would overwrite each
+			// other's partitions, so only the first one is loaded.
+			table := dt.Dataset() + "." + dt.Table()
+			source := "gs://" + schema.Bucket + "/" + schema.Name
+			if first, ok := seen[table]; ok {
+				err := fmt.Errorf("%s is already loaded from %s", table, first)
+				log.Printf("skipping v3 schema %s: %v", source, err)
+				return err
+			}
+			seen[table] = source
 
 			datatypes = append(datatypes, dt)
 			return nil

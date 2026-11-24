@@ -8,6 +8,7 @@ import (
 
 	"cloud.google.com/go/bigquery"
 	"github.com/google/go-cmp/cmp"
+	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
 	"github.com/m-lab/autoloader/api"
 	apiv3 "github.com/m-lab/autoloader/api/v3"
 	"github.com/m-lab/autoloader/gcs"
@@ -134,21 +135,19 @@ func TestClient_loadShared(t *testing.T) {
 			bq: &fakeBQ{hiveErrs: map[string]error{
 				part18: errFake, "ndt7_a$20261118": errFake, "ndt7_b$20261118": errFake,
 			}},
-			want:         append(append([]call{}, fallback18...), loadB18),
-			wantExcluded: map[string]float64{"a": 1, "b": 1},
-			wantErr:      true,
+			// Nothing was copied, so no org counts as excluded.
+			want:    append(append([]call{}, fallback18...), loadB18),
+			wantErr: true,
 		},
 		{
+			// The partition is untouched, so b does not count as excluded.
 			name: "copy-fails",
-			dirs: []gcs.Dir{sharedDir("a", day18, T)},
-			bq:   &fakeBQ{hiveErrs: map[string]error{part18: errFake}, copyErr: errFake},
-			want: []call{
-				{method: "LoadHive", prefix: testPrefix, table: part18, uris: []string{path("a", day18)}},
-				{method: "EnsureStagingDataset"},
-				{method: "EnsureStagingTable", table: "a"},
-				{method: "LoadHive", prefix: testPrefix, table: "ndt7_a$20261118", uris: []string{path("a", day18)}},
-				copyA18,
+			dirs: []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
+			bq: &fakeBQ{
+				hiveErrs: map[string]error{part18: errFake, "ndt7_b$20261118": errFake},
+				copyErr:  errFake,
 			},
+			want:    append(append([]call{}, fallback18...), loadB18, copyA18),
 			wantErr: true,
 		},
 		{
@@ -193,7 +192,7 @@ func TestClient_loadShared(t *testing.T) {
 			name: "metadata-fails",
 			dirs: []gcs.Dir{sharedDir("a", day18, T.Add(-7*time.Hour))},
 			// No metadata for the partition: the fake returns an error.
-			bq:   &fakeBQ{},
+			bq:   &fakeBQ{tables: map[string]*bigquery.TableMetadata{}},
 			want: []call{{method: "LoadHive", prefix: testPrefix, table: part18, uris: []string{path("a", day18)}}},
 		},
 		{
@@ -225,6 +224,11 @@ func TestClient_loadShared(t *testing.T) {
 			// A separate experiment per case keeps the counters apart.
 			dt := sharedDatatype(tt.name)
 			storage := &fakeStorage{dirs: map[string][]gcs.Dir{"ndt7": tt.dirs}}
+			if tt.bq.tables == nil {
+				// Unless a case says otherwise, the partitions have never been
+				// loaded: their metadata reports zero rows.
+				tt.bq.tables = map[string]*bigquery.TableMetadata{part18: {}, part19: {}}
+			}
 			c := NewClient(storage, tt.bq)
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{}, nil, nil)
 			opts := tt.opts
@@ -269,6 +273,50 @@ func TestClient_loadShared_ReturnsLastError(t *testing.T) {
 	if last.method != "LoadHive" || last.table != part19 {
 		t.Errorf("Client.loadShared() last call = %v, want a load of %s", last, part19)
 	}
+}
+
+func TestClient_loadShared_Cancelled(t *testing.T) {
+	// The request is cancelled during the fallback of the 18th: no org counts
+	// as excluded, nothing is copied and the 19th is not attempted.
+	ctx, cancel := context.WithCancel(context.Background())
+	bq := &cancellingBQ{fakeBQ: &fakeBQ{hiveErrs: map[string]error{part18: errFake}}, cancel: cancel}
+	storage := &fakeStorage{dirs: map[string][]gcs.Dir{"ndt7": {
+		sharedDir("a", day18, time.Time{}), sharedDir("b", day18, time.Time{}), sharedDir("a", day19, time.Time{}),
+	}}}
+	c := NewClient(storage, bq)
+	ds := bqfake.NewDataset(map[string]*bqfake.Table{}, nil, nil)
+
+	err := c.loadShared(ctx, ds, sharedDatatype("cancelled"), periodOpts("daily"))
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Client.loadShared() error = %v, want = %v", err, context.Canceled)
+	}
+	for _, call := range bq.calls {
+		if call.method == "CopyPartitions" || call.table == part19 {
+			t.Errorf("Client.loadShared() unexpected call after cancellation: %v", call)
+		}
+	}
+	for _, org := range []string{"a", "b"} {
+		got := testutil.ToFloat64(metrics.ExcludedOrgsTotal.WithLabelValues("v3", "cancelled", "ndt7", org))
+		if got != 0 {
+			t.Errorf("Client.loadShared() excluded org %s got = %v, want = 0", org, got)
+		}
+	}
+}
+
+// cancellingBQ cancels the request during the first staging load, which then
+// fails like every call made with a cancelled context.
+type cancellingBQ struct {
+	*fakeBQ
+	cancel context.CancelFunc
+}
+
+func (bq *cancellingBQ) LoadHive(ctx context.Context, ds bqiface.Dataset, name string, dt *api.Datatype, uri ...string) error {
+	err := bq.fakeBQ.LoadHive(ctx, ds, name, dt, uri...)
+	if name == "ndt7_a$20261118" {
+		bq.cancel()
+		return context.Canceled
+	}
+	return err
 }
 
 func TestClient_loadShared_StorageError(t *testing.T) {

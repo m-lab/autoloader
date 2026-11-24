@@ -60,6 +60,11 @@ func (c *Client) loadShared(ctx context.Context, ds bqiface.Dataset, dt *api.Dat
 
 	loaded := 0
 	for _, date := range dates {
+		if ctx.Err() != nil {
+			// The request was cancelled: every remaining call would fail.
+			err = ctx.Err()
+			break
+		}
 		group := byDate[date]
 		sort.SliceStable(group, func(i, j int) bool { return group[i].Org < group[j].Org })
 		partition := dt.Table() + "$" + date
@@ -136,8 +141,8 @@ func (c *Client) loadDate(ctx context.Context, ds bqiface.Dataset, dt *api.Datat
 // table and then replaces the destination partition with a copy of the
 // staging partitions of the orgs that loaded. An org that fails is excluded,
 // so the partition afterwards holds the other orgs only, and an error is
-// returned. If no org loads, or the copy fails, the destination partition is
-// left untouched.
+// returned. If no org loads, the copy fails or the request is cancelled, the
+// destination partition is left untouched and no org counts as excluded.
 func (c *Client) loadByOrg(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, date string, group []gcs.Dir) error {
 	partition := dt.Table() + "$" + date
 
@@ -155,9 +160,12 @@ func (c *Client) loadByOrg(ctx context.Context, ds bqiface.Dataset, dt *api.Data
 			err = c.BQClient.LoadHive(ctx, stg, name, dt, dir.Path)
 		}
 		if err != nil {
-			log.Printf("excluding org %s from BigQuery table %s.%s: failed to load %s to staging table %s: %v",
+			if ctx.Err() != nil {
+				// The request was cancelled, which says nothing about the org.
+				return ctx.Err()
+			}
+			log.Printf("failed to load org %s for BigQuery table %s.%s: %s to staging table %s: %v",
 				dir.Org, dt.Dataset(), partition, dir.Path, name, err)
-			metrics.ExcludedOrgsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, dir.Org).Inc()
 			excluded = append(excluded, dir.Org)
 			continue
 		}
@@ -173,6 +181,11 @@ func (c *Client) loadByOrg(ctx context.Context, ds bqiface.Dataset, dt *api.Data
 		return fmt.Errorf("failed to copy staging partitions: %w", err)
 	}
 
+	// Only now is an org really excluded: the partition holds the other orgs.
+	for _, org := range excluded {
+		log.Printf("excluded org %s from BigQuery table %s.%s", org, dt.Dataset(), partition)
+		metrics.ExcludedOrgsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, org).Inc()
+	}
 	if len(excluded) != 0 {
 		return fmt.Errorf("loaded without excluded orgs %v", excluded)
 	}
