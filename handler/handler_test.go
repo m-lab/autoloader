@@ -43,6 +43,23 @@ type fakeBQ struct {
 	createCount  int
 	updateCount  int
 	loadCount    int
+
+	// Shared-table (hive) loading. Errors are scripted per table name (hive
+	// loads) or per org (staging tables), and every call is recorded.
+	hiveErrs      map[string]error
+	stagingDsErr  error
+	stagingTblErr map[string]error
+	copyErr       error
+	calls         []call
+}
+
+// call records one shared-table operation requested from the fake.
+type call struct {
+	method string
+	table  string   // Destination table, or the org for EnsureStagingTable.
+	prefix string   // Hive prefix of the datatype of a hive load.
+	uris   []string // Source URIs of a hive load.
+	srcs   []string // Source tables of a copy.
 }
 
 func (bq *fakeBQ) GetDataset(ctx context.Context, name string) (bqiface.Dataset, error) {
@@ -399,4 +416,31 @@ func TestClient_load(t *testing.T) {
 			}
 		})
 	}
+}
+
+func (bq *fakeBQ) LoadHive(ctx context.Context, ds bqiface.Dataset, name string, dt *api.Datatype, uri ...string) error {
+	bq.calls = append(bq.calls, call{method: "LoadHive", table: name, prefix: dt.HivePrefix, uris: uri})
+	return bq.hiveErrs[name]
+}
+
+func (bq *fakeBQ) EnsureStagingDataset(ctx context.Context, dt *api.Datatype) (bqiface.Dataset, error) {
+	bq.calls = append(bq.calls, call{method: "EnsureStagingDataset"})
+	if bq.stagingDsErr != nil {
+		return nil, bq.stagingDsErr
+	}
+	return bqfake.NewDataset(map[string]*bqfake.Table{}, nil, nil), nil
+}
+
+func (bq *fakeBQ) EnsureStagingTable(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, org string) error {
+	bq.calls = append(bq.calls, call{method: "EnsureStagingTable", table: org})
+	return bq.stagingTblErr[org]
+}
+
+func (bq *fakeBQ) CopyPartitions(ctx context.Context, dst bqiface.Table, srcs ...bqiface.Table) error {
+	c := call{method: "CopyPartitions", table: dst.TableID()}
+	for _, src := range srcs {
+		c.srcs = append(c.srcs, src.TableID())
+	}
+	bq.calls = append(bq.calls, c)
+	return bq.copyErr
 }

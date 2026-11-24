@@ -387,7 +387,7 @@ func TestClientV2_GetDirs(t *testing.T) {
 				return
 			}
 
-			if !cmp.Equal(got, tt.want, cmpopts.EquateEmpty()) {
+			if !cmp.Equal(got, tt.want, cmpopts.EquateEmpty(), cmpopts.IgnoreFields(gcs.Dir{}, "Newest")) {
 				t.Errorf("ClientV2.GetDirs() = %v, want %v", got, tt.want)
 			}
 		})

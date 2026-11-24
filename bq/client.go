@@ -2,7 +2,6 @@ package bq
 
 import (
 	"context"
-	"errors"
 	"log"
 
 	"cloud.google.com/go/bigquery"
@@ -57,21 +56,13 @@ func (c *Client) GetTableMetadata(ctx context.Context, ds bqiface.Dataset, name 
 // CreateTable creates a new date-partitioned table for the input `api.Datatype`.
 // It returns the table's metadata and an error if the table creation was not successful.
 func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype) (*bigquery.TableMetadata, error) {
-	bqSchema, err := bigquery.SchemaFromJSON(dt.Schema)
+	md, err := tableMetadata(dt, dt.Table())
 	if err != nil {
 		return nil, err
 	}
 
 	t := ds.Table(dt.Table())
-	err = t.Create(ctx, &bigquery.TableMetadata{
-		Name:   dt.Table(),
-		Schema: bqSchema,
-		TimePartitioning: &bigquery.TimePartitioning{
-			Type:                   bigquery.DayPartitioningType,
-			Field:                  "date",
-			RequirePartitionFilter: true,
-		},
-	})
+	err = t.Create(ctx, md)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +71,7 @@ func (c *Client) CreateTable(ctx context.Context, ds bqiface.Dataset, dt *api.Da
 
 // UpdateSchema updates the schema for the input `api.Datatype` table.
 func (c *Client) UpdateSchema(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype) error {
-	bqSchema, err := bigquery.SchemaFromJSON(dt.Schema)
+	bqSchema, err := tableSchema(dt)
 	if err != nil {
 		return err
 	}
@@ -121,46 +112,5 @@ func (c *Client) updateView(ctx context.Context, dt *api.Datatype, bqSchema bigq
 	_, err = view.Update(ctx, bigquery.TableMetadataToUpdate{
 		Schema: bqSchema,
 	}, "")
-	return err
-}
-
-// Load loads data from a set of GCS uris to a BigQuery table. It overwrites the existing data in
-// the destination table. If the table name includes a partition decoration (e.g., table$YYYYMMDD),
-// it will only overwrite said partition.
-func (c *Client) Load(ctx context.Context, ds bqiface.Dataset, name string, uri ...string) error {
-	gcsRef := bigquery.NewGCSReference(uri...)
-	gcsRef.SourceFormat = bigquery.JSON
-	tbl := ds.Table(name)
-	loader := tbl.LoaderFrom(gcsRef)
-	loader.SetLoadConfig(bqiface.LoadConfig{
-		LoadConfig: bigquery.LoadConfig{
-			Src:              gcsRef,
-			WriteDisposition: bigquery.WriteTruncate,
-		},
-		Dst: tbl,
-	})
-
-	job, err := loader.Run(ctx)
-	if err != nil {
-		return err
-	}
-
-	status, err := job.Wait(ctx)
-	if err != nil {
-		return err
-	}
-
-	if status.Err() != nil {
-		return jobErrors(status)
-	}
-
-	return nil
-}
-
-func jobErrors(status *bigquery.JobStatus) error {
-	var err error
-	for _, e := range status.Errors {
-		err = errors.Join(err, e)
-	}
 	return err
 }

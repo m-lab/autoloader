@@ -36,6 +36,19 @@ type BQClient interface {
 	CreateTable(context.Context, bqiface.Dataset, *api.Datatype) (*bigquery.TableMetadata, error)
 	UpdateSchema(context.Context, bqiface.Dataset, *api.Datatype) error
 	Load(context.Context, bqiface.Dataset, string, ...string) error
+	LoadHive(context.Context, bqiface.Dataset, string, *api.Datatype, ...string) error
+	EnsureStagingDataset(context.Context, *api.Datatype) (bqiface.Dataset, error)
+	EnsureStagingTable(context.Context, bqiface.Dataset, *api.Datatype, string) error
+	CopyPartitions(context.Context, bqiface.Table, ...bqiface.Table) error
+}
+
+// Version returns the autoload version of a datatype for use as a metric
+// label. v1 datatypes do not set a version.
+func Version(dt *api.Datatype) string {
+	if dt.Version == "" {
+		return "v1"
+	}
+	return dt.Version
 }
 
 // NewClient creates a new instance of Client.
@@ -63,11 +76,11 @@ func (c *Client) Load(w http.ResponseWriter, r *http.Request) {
 		t := time.Now()
 		err := c.processDatatype(ctx, dt, opts)
 		if err != nil {
-			metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, opts.period, "error").Observe(time.Since(t).Seconds())
+			metrics.AutoloadDuration.WithLabelValues(Version(dt), dt.Experiment, dt.Name, opts.period, "error").Observe(time.Since(t).Seconds())
 			errs = append(errs, fmt.Sprintf("failed to autoload %s.%s: %s", dt.Experiment, dt.Name, err.Error()))
 			continue
 		}
-		metrics.AutoloadDuration.WithLabelValues(dt.Experiment, dt.Name, opts.period, "OK").Observe(time.Since(t).Seconds())
+		metrics.AutoloadDuration.WithLabelValues(Version(dt), dt.Experiment, dt.Name, opts.period, "OK").Observe(time.Since(t).Seconds())
 	}
 
 	if len(errs) != 0 {
@@ -86,10 +99,10 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 		ds, err = c.BQClient.CreateDataset(ctx, dt)
 		if err != nil {
 			log.Printf("failed to create BigQuery dataset %s: %v", dt.Dataset(), err)
-			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-dataset", "error").Inc()
+			metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "create-dataset", "error").Inc()
 			return err
 		}
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-dataset", "OK").Inc()
+		metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "create-dataset", "OK").Inc()
 	}
 
 	// Get or create table.
@@ -98,39 +111,45 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 		md, err = c.BQClient.CreateTable(ctx, ds, dt)
 		if err != nil {
 			log.Printf("failed to create BigQuery table %s.%s: %v", dt.Dataset(), dt.Table(), err)
-			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-table", "error").Inc()
+			metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "create-table", "error").Inc()
 			return err
 		}
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "create-table", "OK").Inc()
+		metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "create-table", "OK").Inc()
 		// Since a new table was created, override the given optionss and default to options
 		// of complete history.
 		opts = periodOpts("everything")
 	}
 
-	// Update table (if necessary).
-	if dt.UpdatedTime.After(md.LastModifiedTime) {
+	// Update table (if necessary). A shared table's schema is updated on every
+	// run, because a schema file uploaded while a run is in progress is older
+	// than the table by the next run and would never be applied.
+	if dt.HivePrefix != "" || dt.UpdatedTime.After(md.LastModifiedTime) {
 		err = c.BQClient.UpdateSchema(ctx, ds, dt)
 		if err != nil {
 			log.Printf("failed to update BigQuery table %s.%s: %v", dt.Dataset(), dt.Table(), err)
-			metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "update-schema", "error").Inc()
+			metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "update-schema", "error").Inc()
 			return err
 		}
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "update-schema", "OK").Inc()
+		metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "update-schema", "OK").Inc()
 	}
 
 	// Load data.
 	err = c.load(ctx, ds, dt, opts)
 	if err != nil {
-		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "load", "error").Inc()
+		metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "load", "error").Inc()
 		return err
 	}
 
-	metrics.BigQueryOperationsTotal.WithLabelValues(dt.Experiment, dt.Name, "load", "OK").Inc()
+	metrics.BigQueryOperationsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, "load", "OK").Inc()
 	return nil
 }
 
 // load loads the contents of a set of storage directories to a date-partitioned table.
 func (c *Client) load(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, opts *LoadOptions) error {
+	if dt.HivePrefix != "" {
+		return c.loadShared(ctx, ds, dt, opts)
+	}
+
 	dirs, err := c.StorageClient.GetDirs(ctx, dt, opts.start, opts.end)
 	if err != nil {
 		log.Printf("failed to get directories for %s.%s: %v: ", dt.Experiment, dt.Name, err)
@@ -147,10 +166,10 @@ func (c *Client) load(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype,
 		if e != nil {
 			err = e
 			log.Printf("failed to load %s to BigQuery table %s: %v", dir.Path, table, e)
-			metrics.LoadedDates.WithLabelValues(dt.Experiment, dt.Name, opts.period, "error").Set(float64(dir.Date.Unix()))
+			metrics.LoadedDates.WithLabelValues(Version(dt), dt.Experiment, dt.Name, opts.period, "error").Set(float64(dir.Date.Unix()))
 			continue
 		}
-		metrics.LoadedDates.WithLabelValues(dt.Experiment, dt.Name, opts.period, "OK").Set(float64(dir.Date.Unix()))
+		metrics.LoadedDates.WithLabelValues(Version(dt), dt.Experiment, dt.Name, opts.period, "OK").Set(float64(dir.Date.Unix()))
 	}
 
 	log.Printf("finished loading data to BigQuery table %s.%s for dates %s to %s, duration: %s",
