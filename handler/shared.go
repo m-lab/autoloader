@@ -2,15 +2,14 @@ package handler
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"log"
+	"regexp"
 	"sort"
 	"time"
 
+	"cloud.google.com/go/bigquery"
 	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
 	"github.com/m-lab/autoloader/api"
-	"github.com/m-lab/autoloader/bq"
 	"github.com/m-lab/autoloader/gcs"
 	"github.com/m-lab/autoloader/metrics"
 	"github.com/m-lab/go/timex"
@@ -22,14 +21,10 @@ import (
 // partition's new last-modified time and would otherwise never be noticed.
 const changeMargin = 6 * time.Hour
 
-// errNoOrgLoaded is returned when the per-org fallback could not load any org
-// of a date.
-var errNoOrgLoaded = errors.New("no org could be loaded")
-
 // loadShared loads a datatype whose orgs share one table. Each date with new
 // objects is loaded with a single hive-partitioned job that names every org's
-// directory. If that job fails, the date is loaded org by org (see loadByOrg).
-// A failed date does not stop later dates; the last error is returned.
+// directory. A failed date does not stop later dates; the last error is
+// returned.
 func (c *Client) loadShared(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, opts *LoadOptions) error {
 	dirs, err := c.StorageClient.GetDirs(ctx, dt, opts.start, opts.end)
 	if err != nil {
@@ -118,8 +113,10 @@ func (c *Client) changed(ctx context.Context, ds bqiface.Dataset, partition stri
 	return newest.After(md.LastModifiedTime.Add(-changeMargin))
 }
 
-// loadDate loads every org's directory for one date with a single job, and
-// falls back to loading org by org if that job fails for any reason.
+// loadDate loads every org's directory for one date with a single job. If
+// the job fails, the destination partition is left as it was, so no org gets
+// that date's new data until the cause is gone, and the failure is counted
+// per org (see countLoadErrors).
 func (c *Client) loadDate(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, date string, group []gcs.Dir) error {
 	partition := dt.Table() + "$" + date
 	paths := make([]string, 0, len(group))
@@ -128,66 +125,88 @@ func (c *Client) loadDate(ctx context.Context, ds bqiface.Dataset, dt *api.Datat
 	}
 
 	err := c.BQClient.LoadHive(ctx, ds, partition, dt, paths...)
-	if err == nil {
-		return nil
+	if err != nil && ctx.Err() == nil {
+		// A cancelled request says nothing about the data.
+		countLoadErrors(dt, err)
 	}
-	log.Printf("failed to load %d orgs to BigQuery table %s.%s, loading org by org: %v",
-		len(group), dt.Dataset(), partition, err)
-
-	return c.loadByOrg(ctx, ds, dt, date, group)
+	return err
 }
 
-// loadByOrg loads each org's directory for one date into its own staging
-// table and then replaces the destination partition with a copy of the
-// staging partitions of the orgs that loaded. An org that fails is excluded,
-// so the partition afterwards holds the other orgs only, and an error is
-// returned. If no org loads, the copy fails or the request is cancelled, the
-// destination partition is left untouched and no org counts as excluded.
-func (c *Client) loadByOrg(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, date string, group []gcs.Dir) error {
-	partition := dt.Table() + "$" + date
+// orgInPath captures the org of an object path under a hive prefix.
+var orgInPath = regexp.MustCompile(`/org=([^/\s]+)/`)
 
-	stg, err := c.BQClient.EnsureStagingDataset(ctx, dt)
-	if err != nil {
-		return fmt.Errorf("failed to get staging dataset %s: %w", bq.StagingDataset(dt), err)
+// unknown is the label value for an org or a reason that an error does not
+// name.
+const unknown = "unknown"
+
+// loadFailure is one org and BigQuery reason to count for a failed load.
+type loadFailure struct {
+	org    string
+	reason string
+}
+
+// countLoadErrors increments metrics.LoadErrorsTotal for a failed shared load.
+// BigQuery names the offending file for most bad data (corrupt or malformed
+// files, unknown fields), which identifies the org: each org named is counted
+// once per reason. An error that names no file, such as a backend error or a
+// row whose date differs from the partition's, is counted once under the org
+// "unknown".
+func countLoadErrors(dt *api.Datatype, err error) {
+	for _, f := range loadFailures(err) {
+		metrics.LoadErrorsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, f.org, f.reason).Inc()
 	}
+}
 
-	var srcs []bqiface.Table
-	var excluded []string
-	for _, dir := range group {
-		name := bq.StagingTable(dt, dir.Org) + "$" + date
-		err := c.BQClient.EnsureStagingTable(ctx, stg, dt, dir.Org)
-		if err == nil {
-			err = c.BQClient.LoadHive(ctx, stg, name, dt, dir.Path)
+// loadFailures returns the distinct orgs and reasons to count for err, in the
+// order they appear.
+func loadFailures(err error) []loadFailure {
+	var named, unnamed []loadFailure
+	seen := map[loadFailure]bool{}
+	for _, e := range bqErrors(err) {
+		reason := e.Reason
+		if reason == "" {
+			reason = unknown
 		}
-		if err != nil {
-			if ctx.Err() != nil {
-				// The request was cancelled, which says nothing about the org.
-				return ctx.Err()
-			}
-			log.Printf("failed to load org %s for BigQuery table %s.%s: %s to staging table %s: %v",
-				dir.Org, dt.Dataset(), partition, dir.Path, name, err)
-			excluded = append(excluded, dir.Org)
+		m := orgInPath.FindStringSubmatch(e.Location + " " + e.Message)
+		if m == nil {
+			unnamed = append(unnamed, loadFailure{unknown, reason})
 			continue
 		}
-		srcs = append(srcs, stg.Table(name))
+		f := loadFailure{m[1], reason}
+		if !seen[f] {
+			seen[f] = true
+			named = append(named, f)
+		}
 	}
 
-	if len(srcs) == 0 {
-		return errNoOrgLoaded
+	switch {
+	case len(named) != 0:
+		return named
+	case len(unnamed) != 0:
+		return unnamed[:1]
+	default:
+		// Not a BigQuery job error (e.g., the job could not be started).
+		return []loadFailure{{unknown, unknown}}
 	}
+}
 
-	err = c.BQClient.CopyPartitions(ctx, ds.Table(partition), srcs...)
-	if err != nil {
-		return fmt.Errorf("failed to copy staging partitions: %w", err)
+// bqErrors returns the BigQuery errors wrapped or joined in err.
+func bqErrors(err error) []*bigquery.Error {
+	var errs []*bigquery.Error
+	var walk func(error)
+	walk = func(e error) {
+		switch e := e.(type) {
+		case nil:
+		case *bigquery.Error:
+			errs = append(errs, e)
+		case interface{ Unwrap() []error }:
+			for _, u := range e.Unwrap() {
+				walk(u)
+			}
+		case interface{ Unwrap() error }:
+			walk(e.Unwrap())
+		}
 	}
-
-	// Only now is an org really excluded: the partition holds the other orgs.
-	for _, org := range excluded {
-		log.Printf("excluded org %s from BigQuery table %s.%s", org, dt.Dataset(), partition)
-		metrics.ExcludedOrgsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, org).Inc()
-	}
-	if len(excluded) != 0 {
-		return fmt.Errorf("loaded without excluded orgs %v", excluded)
-	}
-	return nil
+	walk(err)
+	return errs
 }

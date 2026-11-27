@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -54,25 +55,14 @@ func TestClient_loadShared(t *testing.T) {
 	loaded := func(name string) map[string]*bigquery.TableMetadata {
 		return map[string]*bigquery.TableMetadata{name: {NumRows: 10, LastModifiedTime: T}}
 	}
-	// The calls of a fallback for a and b on the 18th, up to the copy.
-	fallback18 := []call{
-		{method: "LoadHive", prefix: testPrefix, table: part18, uris: []string{path("a", day18), path("b", day18)}},
-		{method: "EnsureStagingDataset"},
-		{method: "EnsureStagingTable", table: "a"},
-		{method: "LoadHive", prefix: testPrefix, table: "ndt7_a$20261118", uris: []string{path("a", day18)}},
-		{method: "EnsureStagingTable", table: "b"},
-	}
-	loadB18 := call{method: "LoadHive", prefix: testPrefix, table: "ndt7_b$20261118", uris: []string{path("b", day18)}}
-	copyA18 := call{method: "CopyPartitions", table: part18, srcs: []string{"ndt7_a$20261118"}}
 
 	tests := []struct {
-		name         string
-		dirs         []gcs.Dir
-		bq           *fakeBQ
-		opts         *LoadOptions
-		want         []call
-		wantExcluded map[string]float64
-		wantErr      bool
+		name    string
+		dirs    []gcs.Dir
+		bq      *fakeBQ
+		opts    *LoadOptions
+		want    []call
+		wantErr bool
 	}{
 		{
 			name: "two-dates-two-orgs",
@@ -85,69 +75,21 @@ func TestClient_loadShared(t *testing.T) {
 			},
 		},
 		{
-			name: "shared-job-fails",
-			dirs: []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
-			bq:   &fakeBQ{hiveErrs: map[string]error{part18: errFake}},
-			want: append(append([]call{}, fallback18...), loadB18,
-				call{method: "CopyPartitions", table: part18, srcs: []string{"ndt7_a$20261118", "ndt7_b$20261118"}}),
-		},
-		{
-			name:         "one-org-bad",
-			dirs:         []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
-			bq:           &fakeBQ{hiveErrs: map[string]error{part18: errFake, "ndt7_b$20261118": errFake}},
-			want:         append(append([]call{}, fallback18...), loadB18, copyA18),
-			wantExcluded: map[string]float64{"b": 1},
-			wantErr:      true,
-		},
-		{
-			name: "staging-table-fails",
-			dirs: []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
-			bq: &fakeBQ{
-				hiveErrs:      map[string]error{part18: errFake},
-				stagingTblErr: map[string]error{"b": errFake},
-			},
-			want:         append(append([]call{}, fallback18...), copyA18),
-			wantExcluded: map[string]float64{"b": 1},
-			wantErr:      true,
-		},
-		{
-			name: "staging-dataset-fails",
-			dirs: []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
-			bq:   &fakeBQ{hiveErrs: map[string]error{part18: errFake}, stagingDsErr: errFake},
-			want: []call{
-				{method: "LoadHive", prefix: testPrefix, table: part18, uris: []string{path("a", day18), path("b", day18)}},
-				{method: "EnsureStagingDataset"},
-			},
+			// No retry and no other job: the partition is left as it was.
+			name:    "shared-job-fails",
+			dirs:    []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
+			bq:      &fakeBQ{hiveErrs: map[string]error{part18: errFake}},
+			want:    []call{{method: "LoadHive", prefix: testPrefix, table: part18, uris: []string{path("a", day18), path("b", day18)}}},
 			wantErr: true,
 		},
 		{
 			name: "a-later-date-still-loads",
 			dirs: []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T), sharedDir("a", day19, T)},
-			bq:   &fakeBQ{hiveErrs: map[string]error{part18: errFake, "ndt7_b$20261118": errFake}},
-			want: append(append([]call{}, fallback18...), loadB18, copyA18,
-				call{method: "LoadHive", prefix: testPrefix, table: part19, uris: []string{path("a", day19)}}),
-			wantExcluded: map[string]float64{"b": 1},
-			wantErr:      true,
-		},
-		{
-			name: "all-orgs-bad",
-			dirs: []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
-			bq: &fakeBQ{hiveErrs: map[string]error{
-				part18: errFake, "ndt7_a$20261118": errFake, "ndt7_b$20261118": errFake,
-			}},
-			// Nothing was copied, so no org counts as excluded.
-			want:    append(append([]call{}, fallback18...), loadB18),
-			wantErr: true,
-		},
-		{
-			// The partition is untouched, so b does not count as excluded.
-			name: "copy-fails",
-			dirs: []gcs.Dir{sharedDir("a", day18, T), sharedDir("b", day18, T)},
-			bq: &fakeBQ{
-				hiveErrs: map[string]error{part18: errFake, "ndt7_b$20261118": errFake},
-				copyErr:  errFake,
+			bq:   &fakeBQ{hiveErrs: map[string]error{part18: errFake}},
+			want: []call{
+				{method: "LoadHive", prefix: testPrefix, table: part18, uris: []string{path("a", day18), path("b", day18)}},
+				{method: "LoadHive", prefix: testPrefix, table: part19, uris: []string{path("a", day19)}},
 			},
-			want:    append(append([]call{}, fallback18...), loadB18, copyA18),
 			wantErr: true,
 		},
 		{
@@ -244,21 +186,14 @@ func TestClient_loadShared(t *testing.T) {
 			if diff := cmp.Diff(tt.want, tt.bq.calls, cmp.AllowUnexported(call{})); diff != "" {
 				t.Errorf("Client.loadShared() calls mismatch (-want +got):\n%s", diff)
 			}
-
-			for _, org := range []string{"a", "b"} {
-				got := testutil.ToFloat64(metrics.ExcludedOrgsTotal.WithLabelValues("v3", tt.name, "ndt7", org))
-				if got != tt.wantExcluded[org] {
-					t.Errorf("Client.loadShared() excluded org %s got = %v, want = %v", org, got, tt.wantExcluded[org])
-				}
-			}
 		})
 	}
 }
 
 func TestClient_loadShared_ReturnsLastError(t *testing.T) {
-	// The 18th fails in the copy and the 19th loads cleanly: the 19th is still
-	// loaded and the error of the 18th is returned.
-	bq := &fakeBQ{hiveErrs: map[string]error{part18: errors.New("shared")}, copyErr: errFake}
+	// Both dates fail: the error of the last one is returned.
+	errLast := errors.New("last")
+	bq := &fakeBQ{hiveErrs: map[string]error{part18: errFake, part19: errLast}}
 	storage := &fakeStorage{dirs: map[string][]gcs.Dir{"ndt7": {
 		sharedDir("a", day18, time.Time{}), sharedDir("a", day19, time.Time{}),
 	}}}
@@ -266,22 +201,18 @@ func TestClient_loadShared_ReturnsLastError(t *testing.T) {
 	ds := bqfake.NewDataset(map[string]*bqfake.Table{}, nil, nil)
 
 	err := c.loadShared(context.Background(), ds, sharedDatatype("last-error"), periodOpts("daily"))
-	if !errors.Is(err, errFake) {
-		t.Errorf("Client.loadShared() error = %v, want = %v", err, errFake)
-	}
-	last := bq.calls[len(bq.calls)-1]
-	if last.method != "LoadHive" || last.table != part19 {
-		t.Errorf("Client.loadShared() last call = %v, want a load of %s", last, part19)
+	if !errors.Is(err, errLast) {
+		t.Errorf("Client.loadShared() error = %v, want = %v", err, errLast)
 	}
 }
 
 func TestClient_loadShared_Cancelled(t *testing.T) {
-	// The request is cancelled during the fallback of the 18th: no org counts
-	// as excluded, nothing is copied and the 19th is not attempted.
+	// The request is cancelled during the load of the 18th: the failure is not
+	// counted as a load error and the 19th is not attempted.
 	ctx, cancel := context.WithCancel(context.Background())
-	bq := &cancellingBQ{fakeBQ: &fakeBQ{hiveErrs: map[string]error{part18: errFake}}, cancel: cancel}
+	bq := &cancellingBQ{fakeBQ: &fakeBQ{}, cancel: cancel}
 	storage := &fakeStorage{dirs: map[string][]gcs.Dir{"ndt7": {
-		sharedDir("a", day18, time.Time{}), sharedDir("b", day18, time.Time{}), sharedDir("a", day19, time.Time{}),
+		sharedDir("a", day18, time.Time{}), sharedDir("a", day19, time.Time{}),
 	}}}
 	c := NewClient(storage, bq)
 	ds := bqfake.NewDataset(map[string]*bqfake.Table{}, nil, nil)
@@ -290,33 +221,26 @@ func TestClient_loadShared_Cancelled(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Errorf("Client.loadShared() error = %v, want = %v", err, context.Canceled)
 	}
-	for _, call := range bq.calls {
-		if call.method == "CopyPartitions" || call.table == part19 {
-			t.Errorf("Client.loadShared() unexpected call after cancellation: %v", call)
-		}
+	if len(bq.calls) != 1 || bq.calls[0].table != part18 {
+		t.Errorf("Client.loadShared() calls = %v, want only a load of %s", bq.calls, part18)
 	}
-	for _, org := range []string{"a", "b"} {
-		got := testutil.ToFloat64(metrics.ExcludedOrgsTotal.WithLabelValues("v3", "cancelled", "ndt7", org))
-		if got != 0 {
-			t.Errorf("Client.loadShared() excluded org %s got = %v, want = 0", org, got)
-		}
+	got := testutil.ToFloat64(metrics.LoadErrorsTotal.WithLabelValues("v3", "cancelled", "ndt7", unknown, unknown))
+	if got != 0 {
+		t.Errorf("LoadErrorsTotal got = %v, want = 0", got)
 	}
 }
 
-// cancellingBQ cancels the request during the first staging load, which then
-// fails like every call made with a cancelled context.
+// cancellingBQ cancels the request during the first load, which then fails
+// like every call made with a cancelled context.
 type cancellingBQ struct {
 	*fakeBQ
 	cancel context.CancelFunc
 }
 
 func (bq *cancellingBQ) LoadHive(ctx context.Context, ds bqiface.Dataset, name string, dt *api.Datatype, uri ...string) error {
-	err := bq.fakeBQ.LoadHive(ctx, ds, name, dt, uri...)
-	if name == "ndt7_a$20261118" {
-		bq.cancel()
-		return context.Canceled
-	}
-	return err
+	bq.fakeBQ.LoadHive(ctx, ds, name, dt, uri...)
+	bq.cancel()
+	return context.Canceled
 }
 
 func TestClient_loadShared_StorageError(t *testing.T) {
@@ -332,9 +256,9 @@ func TestClient_loadShared_StorageError(t *testing.T) {
 }
 
 func TestClient_loadShared_LoadedDates(t *testing.T) {
-	// The 18th loads with an org excluded (error), the 19th loads cleanly (OK).
+	// The 18th fails (error) and the 19th loads (OK).
 	dt := sharedDatatype("loaded-dates")
-	bq := &fakeBQ{hiveErrs: map[string]error{part18: errFake, "ndt7_b$20261118": errFake}}
+	bq := &fakeBQ{hiveErrs: map[string]error{part18: errFake}}
 	storage := &fakeStorage{dirs: map[string][]gcs.Dir{"ndt7": {
 		sharedDir("a", day18, time.Time{}), sharedDir("b", day18, time.Time{}), sharedDir("a", day19, time.Time{}),
 	}}}
@@ -352,6 +276,109 @@ func TestClient_loadShared_LoadedDates(t *testing.T) {
 	got = testutil.ToFloat64(metrics.LoadedDates.WithLabelValues("v3", "loaded-dates", "ndt7", "daily", "OK"))
 	if got != float64(day19.Unix()) {
 		t.Errorf("LoadedDates OK got = %v, want = %v", got, day19.Unix())
+	}
+}
+
+// bqErr returns a BigQuery job error as jobErrors in the bq package joins them.
+func bqErr(errs ...*bigquery.Error) error {
+	var err error
+	for _, e := range errs {
+		err = errors.Join(err, e)
+	}
+	return err
+}
+
+func TestClient_loadShared_LoadErrors(t *testing.T) {
+	bad := "gs://bucket/autoload/v3/org=test-bad/ndt/ndt7/2026/11/18/bad.jsonl.gz"
+	worse := "gs://bucket/autoload/v3/org=foo-bar/ndt/ndt7/2026/11/18/worse.jsonl.gz"
+
+	tests := []struct {
+		name string
+		err  error
+		want []loadFailure
+	}{
+		{
+			// What BigQuery returns for a row with an unknown field: a summary
+			// and a detail error, both naming the file.
+			name: "one-org-named-twice",
+			err: bqErr(
+				&bigquery.Error{Location: bad, Message: "JSON table encountered too many errors, giving up. File: " + bad, Reason: "invalid"},
+				&bigquery.Error{Location: bad, Message: "No such field: nosuchfield. File: " + bad, Reason: "invalid"},
+			),
+			want: []loadFailure{{"test-bad", "invalid"}},
+		},
+		{
+			name: "two-orgs",
+			err: bqErr(
+				&bigquery.Error{Location: bad, Reason: "invalid"},
+				&bigquery.Error{Location: worse, Reason: "invalid"},
+			),
+			want: []loadFailure{{"test-bad", "invalid"}, {"foo-bar", "invalid"}},
+		},
+		{
+			name: "file-only-in-message",
+			err:  bqErr(&bigquery.Error{Message: "Error while reading data. File: " + bad, Reason: "invalid"}),
+			want: []loadFailure{{"test-bad", "invalid"}},
+		},
+		{
+			// A row whose date differs from the partition's names no file.
+			name: "no-file-named",
+			err: bqErr(&bigquery.Error{
+				Message: "Some rows belong to different partitions rather than destination partition",
+				Reason:  "invalid",
+			}),
+			want: []loadFailure{{unknown, "invalid"}},
+		},
+		{
+			name: "backend-error",
+			err:  bqErr(&bigquery.Error{Message: "An internal error occurred", Reason: "backendError"}),
+			want: []loadFailure{{unknown, "backendError"}},
+		},
+		{
+			// An error without a file next to one with a file: only the org
+			// is counted.
+			name: "named-and-unnamed",
+			err: bqErr(
+				&bigquery.Error{Message: "too many errors", Reason: "invalid"},
+				&bigquery.Error{Location: bad, Reason: "invalid"},
+			),
+			want: []loadFailure{{"test-bad", "invalid"}},
+		},
+		{
+			name: "wrapped",
+			err:  fmt.Errorf("load failed: %w", bqErr(&bigquery.Error{Location: bad, Reason: "invalid"})),
+			want: []loadFailure{{"test-bad", "invalid"}},
+		},
+		{
+			name: "not-a-bigquery-error",
+			err:  errFake,
+			want: []loadFailure{{unknown, unknown}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// A separate experiment per case keeps the counters apart.
+			dt := sharedDatatype("load-errors-" + tt.name)
+			bq := &fakeBQ{hiveErrs: map[string]error{part18: tt.err}}
+			storage := &fakeStorage{dirs: map[string][]gcs.Dir{"ndt7": {sharedDir("a", day18, time.Time{})}}}
+			c := NewClient(storage, bq)
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{}, nil, nil)
+
+			if err := c.loadShared(context.Background(), ds, dt, periodOpts("daily")); err == nil {
+				t.Error("Client.loadShared() error = nil, wantErr = true")
+			}
+
+			if got := loadFailures(tt.err); !cmp.Equal(got, tt.want, cmp.AllowUnexported(loadFailure{})) {
+				t.Errorf("loadFailures() = %v, want = %v", got, tt.want)
+			}
+			for _, f := range tt.want {
+				got := testutil.ToFloat64(metrics.LoadErrorsTotal.WithLabelValues("v3", dt.Experiment, "ndt7", f.org, f.reason))
+				if got != 1 {
+					t.Errorf("LoadErrorsTotal{org=%q, reason=%q} got = %v, want = 1", f.org, f.reason, got)
+				}
+			}
+		})
 	}
 }
 

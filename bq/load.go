@@ -27,9 +27,8 @@ func newLoadConfig(hivePrefix string, schema bigquery.Schema, uri ...string) big
 	}
 	if hivePrefix != "" {
 		gcsRef.Schema = schema
-		// The shared table and the staging tables always exist before a load.
-		// Without this, a load into a staging table that has just expired
-		// would re-create it without the clustering a copy job requires.
+		// The shared table always exists before a load. A load must never
+		// create it, because it would lack the partitioning and clustering.
 		cfg.CreateDisposition = bigquery.CreateNever
 		cfg.HivePartitioningOptions = &bigquery.HivePartitioningOptions{
 			Mode:            bigquery.StringHivePartitioningMode,
@@ -51,7 +50,7 @@ func (c *Client) Load(ctx context.Context, ds bqiface.Dataset, name string, uri 
 // component of each object path. It overwrites the existing data in the
 // destination table, or only the partition named by a decoration (e.g.,
 // table$YYYYMMDD). The load carries the schema from the schema file, without
-// the "org" column. It serves both the shared table and the staging tables.
+// the "org" column.
 func (c *Client) LoadHive(ctx context.Context, ds bqiface.Dataset, name string, dt *api.Datatype, uri ...string) error {
 	schema, err := bigquery.SchemaFromJSON(dt.Schema)
 	if err != nil {

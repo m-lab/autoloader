@@ -42,13 +42,14 @@ var (
 		[]string{"version", "experiment", "datatype", "period", "status"},
 	)
 
-	// ExcludedOrgsTotal counts the organizations that were left out of a
-	// shared table's date partition because their data could not be loaded.
-	ExcludedOrgsTotal = promauto.NewCounterVec(
+	// LoadErrorsTotal counts the failed load jobs of shared tables by the org
+	// whose file made the job fail and BigQuery's reason. The org is "unknown"
+	// when the error names no file.
+	LoadErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
-			Name: "autoloader_excluded_orgs_total",
-			Help: "The number of times an organization was excluded from a shared table's date partition.",
+			Name: "autoloader_load_errors_total",
+			Help: "The number of failed shared-table load jobs, by the org whose file failed and BigQuery's reason.",
 		},
-		[]string{"version", "experiment", "datatype", "org"},
+		[]string{"version", "experiment", "datatype", "org", "reason"},
 	)
 )

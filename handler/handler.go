@@ -37,9 +37,6 @@ type BQClient interface {
 	UpdateSchema(context.Context, bqiface.Dataset, *api.Datatype) error
 	Load(context.Context, bqiface.Dataset, string, ...string) error
 	LoadHive(context.Context, bqiface.Dataset, string, *api.Datatype, ...string) error
-	EnsureStagingDataset(context.Context, *api.Datatype) (bqiface.Dataset, error)
-	EnsureStagingTable(context.Context, bqiface.Dataset, *api.Datatype, string) error
-	CopyPartitions(context.Context, bqiface.Table, ...bqiface.Table) error
 }
 
 // Version returns the autoload version of a datatype for use as a metric
