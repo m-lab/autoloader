@@ -23,8 +23,8 @@ var (
 	brokenJSON     = []byte(`[{"name": "id",`)
 )
 
-// sharedDatatype returns a v3 datatype for ndt7 with the input schema.
-func sharedDatatype(schema []byte) *apiv3.Datatype {
+// v3Datatype returns a v3 datatype for ndt7 with the input schema.
+func v3Datatype(schema []byte) *apiv3.Datatype {
 	return apiv3.NewDatatype(api.DatatypeOpts{
 		Name:       "ndt7",
 		Experiment: "ndt",
@@ -54,7 +54,7 @@ func (l *recordingLoader) SetLoadConfig(cfg bqiface.LoadConfig) { l.cfg = &cfg }
 
 func (l *recordingLoader) Run(context.Context) (bqiface.Job, error) { return l.job, l.err }
 
-func Test_sharedSchema(t *testing.T) {
+func Test_schemaV3(t *testing.T) {
 	file := testingx.MustReadFile(t, "./testdata/schema.json")
 	orgField := &bigquery.FieldSchema{Name: "org", Type: bigquery.StringFieldType}
 
@@ -100,26 +100,26 @@ func Test_sharedSchema(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := sharedSchema(sharedDatatype(tt.schema))
+			got, err := schemaV3(v3Datatype(tt.schema))
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("sharedSchema() error = %v, wantErr = %v", err, tt.wantErr)
+				t.Fatalf("schemaV3() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 			if errors.Is(err, ErrOrgColumn) != tt.wantOrgErr {
-				t.Errorf("sharedSchema() error = %v, want ErrOrgColumn = %v", err, tt.wantOrgErr)
+				t.Errorf("schemaV3() error = %v, want ErrOrgColumn = %v", err, tt.wantOrgErr)
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("sharedSchema() = %v, want = %v", got, tt.want)
+				t.Errorf("schemaV3() = %v, want = %v", got, tt.want)
 			}
 		})
 	}
 }
 
-func Test_sharedTableMetadata(t *testing.T) {
+func Test_tableMetadataV3(t *testing.T) {
 	file := testingx.MustReadFile(t, "./testdata/schema.json")
 
 	t.Run("success", func(t *testing.T) {
-		got, err := sharedTableMetadata(sharedDatatype(file))
-		testingx.Must(t, err, "sharedTableMetadata() failed")
+		got, err := tableMetadataV3(v3Datatype(file))
+		testingx.Must(t, err, "tableMetadataV3() failed")
 		want := &bigquery.TableMetadata{
 			Name:   "ndt7_raw",
 			Schema: append(mustSchema(file), &bigquery.FieldSchema{Name: "org", Type: bigquery.StringFieldType}),
@@ -131,14 +131,14 @@ func Test_sharedTableMetadata(t *testing.T) {
 			Clustering: &bigquery.Clustering{Fields: []string{"org"}},
 		}
 		if !reflect.DeepEqual(got, want) {
-			t.Errorf("sharedTableMetadata() = %+v, want = %+v", got, want)
+			t.Errorf("tableMetadataV3() = %+v, want = %+v", got, want)
 		}
 	})
 
 	t.Run("org-column", func(t *testing.T) {
-		got, err := sharedTableMetadata(sharedDatatype(orgSchema))
+		got, err := tableMetadataV3(v3Datatype(orgSchema))
 		if !errors.Is(err, ErrOrgColumn) || got != nil {
-			t.Errorf("sharedTableMetadata() = %v, %v, want nil, ErrOrgColumn", got, err)
+			t.Errorf("tableMetadataV3() = %v, %v, want nil, ErrOrgColumn", got, err)
 		}
 	})
 }
@@ -170,7 +170,7 @@ func Test_hiveLoadConfig(t *testing.T) {
 	}
 }
 
-func TestClient_CreateSharedTable(t *testing.T) {
+func TestClient_CreateTableV3(t *testing.T) {
 	tests := []struct {
 		name    string
 		schema  []byte
@@ -188,43 +188,43 @@ func TestClient_CreateSharedTable(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dt := sharedDatatype(tt.schema)
+			dt := v3Datatype(tt.schema)
 			md := &bigquery.TableMetadata{}
 			table := bqfake.NewTable(bqfake.TableOpts{Name: dt.Table(), Metadata: md})
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{dt.Table(): table}, nil, nil)
 			c := &Client{}
 
-			got, err := c.CreateSharedTable(context.Background(), ds, dt)
+			got, err := c.CreateTableV3(context.Background(), ds, dt)
 			if !errors.Is(err, tt.wantErr) {
-				t.Fatalf("Client.CreateSharedTable() error = %v, want = %v", err, tt.wantErr)
+				t.Fatalf("Client.CreateTableV3() error = %v, want = %v", err, tt.wantErr)
 			}
 			if tt.wantErr != nil {
 				if md.Type != "" {
-					t.Errorf("Client.CreateSharedTable() created a table despite error")
+					t.Errorf("Client.CreateTableV3() created a table despite error")
 				}
 				return
 			}
-			want, err := sharedTableMetadata(dt)
-			testingx.Must(t, err, "sharedTableMetadata() failed")
+			want, err := tableMetadataV3(dt)
+			testingx.Must(t, err, "tableMetadataV3() failed")
 			want.Type = "TABLE" // Set by bqfake on creation.
 			if !reflect.DeepEqual(got, want) {
-				t.Errorf("Client.CreateSharedTable() = %+v, want = %+v", got, want)
+				t.Errorf("Client.CreateTableV3() = %+v, want = %+v", got, want)
 			}
 		})
 	}
 }
 
-func TestClient_CreateSharedTable_Exists(t *testing.T) {
-	dt := sharedDatatype(testingx.MustReadFile(t, "./testdata/schema.json"))
+func TestClient_CreateTableV3_Exists(t *testing.T) {
+	dt := v3Datatype(testingx.MustReadFile(t, "./testdata/schema.json"))
 	table := bqfake.NewTable(bqfake.TableOpts{Name: dt.Table(), Metadata: &bigquery.TableMetadata{Type: "TABLE"}})
 	ds := bqfake.NewDataset(map[string]*bqfake.Table{dt.Table(): table}, nil, nil)
 
-	if _, err := (&Client{}).CreateSharedTable(context.Background(), ds, dt); err == nil {
-		t.Error("Client.CreateSharedTable() error = nil, wantErr = true")
+	if _, err := (&Client{}).CreateTableV3(context.Background(), ds, dt); err == nil {
+		t.Error("Client.CreateTableV3() error = nil, wantErr = true")
 	}
 }
 
-func TestClient_UpdateSharedSchema(t *testing.T) {
+func TestClient_UpdateSchemaV3(t *testing.T) {
 	file := testingx.MustReadFile(t, "./testdata/schema.json")
 	tests := []struct {
 		name      string
@@ -252,17 +252,17 @@ func TestClient_UpdateSharedSchema(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dt := sharedDatatype(tt.schema)
+			dt := v3Datatype(tt.schema)
 			md := &bigquery.TableMetadata{Type: "TABLE"}
 			table := bqfake.NewTable(bqfake.TableOpts{Name: dt.Table(), Metadata: md, UpdateErr: tt.updateErr})
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{dt.Table(): table}, nil, nil)
 
-			err := (&Client{}).UpdateSharedSchema(context.Background(), ds, dt)
+			err := (&Client{}).UpdateSchemaV3(context.Background(), ds, dt)
 			if (err != nil) != tt.wantErr {
-				t.Fatalf("Client.UpdateSharedSchema() error = %v, wantErr = %v", err, tt.wantErr)
+				t.Fatalf("Client.UpdateSchemaV3() error = %v, wantErr = %v", err, tt.wantErr)
 			}
 			if !reflect.DeepEqual(md.Schema, tt.want) {
-				t.Errorf("Client.UpdateSharedSchema() schema = %v, want = %v", md.Schema, tt.want)
+				t.Errorf("Client.UpdateSchemaV3() schema = %v, want = %v", md.Schema, tt.want)
 			}
 		})
 	}
@@ -312,7 +312,7 @@ func TestClient_LoadHive(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dt := sharedDatatype(tt.schema)
+			dt := v3Datatype(tt.schema)
 			table := bqfake.NewTable(bqfake.TableOpts{Name: name, Loader: tt.loader})
 			ds := bqfake.NewDataset(map[string]*bqfake.Table{name: table}, nil, nil)
 

@@ -42,13 +42,13 @@ var (
 		[]string{"version", "experiment", "datatype", "period", "status"},
 	)
 
-	// LoadErrorsTotal counts the failed load jobs of shared tables by the org
-	// whose file made the job fail and BigQuery's reason. The org is "unknown"
-	// when the error names no file.
+	// LoadErrorsTotal counts the failed v3 load jobs by the org whose file made
+	// the job fail and BigQuery's reason. The org is "unknown" when the error
+	// names no file.
 	LoadErrorsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "autoloader_load_errors_total",
-			Help: "The number of failed shared-table load jobs, by the org whose file failed and BigQuery's reason.",
+			Help: "The number of failed v3 load jobs, by the org whose file failed and BigQuery's reason.",
 		},
 		[]string{"version", "experiment", "datatype", "org", "reason"},
 	)

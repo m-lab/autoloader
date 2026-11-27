@@ -11,10 +11,10 @@ import (
 	apiv3 "github.com/m-lab/autoloader/api/v3"
 )
 
-// This file holds the BigQuery operations of v3 datatypes, whose
-// organizations share one table. v1 and v2 do not use it.
+// This file holds the BigQuery operations of v3 datatypes: all organizations
+// of a datatype are loaded into one table. v1 and v2 do not use it.
 
-// orgColumn is the column of a shared table that holds the organization,
+// orgColumn is the column of a v3 table that holds the organization,
 // taken from the "org=<name>" component of the object path.
 const orgColumn = "org"
 
@@ -22,11 +22,11 @@ const orgColumn = "org"
 // column that the autoloader adds itself.
 var ErrOrgColumn = errors.New("schema must not define an org column")
 
-// sharedSchema returns the schema of a shared table: the schema file's fields
+// schemaV3 returns the schema of a v3 table: the schema file's fields
 // followed by a nullable STRING column named "org". A schema file that
 // already has a top-level "org" column, in any letter case, is an error
 // wrapping ErrOrgColumn.
-func sharedSchema(dt *apiv3.Datatype) (bigquery.Schema, error) {
+func schemaV3(dt *apiv3.Datatype) (bigquery.Schema, error) {
 	schema, err := bigquery.SchemaFromJSON(dt.Schema)
 	if err != nil {
 		return nil, err
@@ -43,11 +43,11 @@ func sharedSchema(dt *apiv3.Datatype) (bigquery.Schema, error) {
 	}), nil
 }
 
-// sharedTableMetadata returns the metadata used to create a shared table:
-// the schema from sharedSchema, daily partitioning on the "date" column with
+// tableMetadataV3 returns the metadata used to create a v3 table:
+// the schema from schemaV3, daily partitioning on the "date" column with
 // a required partition filter, and clustering by the "org" column.
-func sharedTableMetadata(dt *apiv3.Datatype) (*bigquery.TableMetadata, error) {
-	schema, err := sharedSchema(dt)
+func tableMetadataV3(dt *apiv3.Datatype) (*bigquery.TableMetadata, error) {
+	schema, err := schemaV3(dt)
 	if err != nil {
 		return nil, err
 	}
@@ -87,10 +87,10 @@ func hiveLoadConfig(hivePrefix string, schema bigquery.Schema, uri ...string) bi
 	}
 }
 
-// CreateSharedTable creates the shared table of a v3 datatype. It returns the
+// CreateTableV3 creates the table of a v3 datatype. It returns the
 // table's metadata and an error if the table creation was not successful.
-func (c *Client) CreateSharedTable(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype) (*bigquery.TableMetadata, error) {
-	md, err := sharedTableMetadata(dt)
+func (c *Client) CreateTableV3(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype) (*bigquery.TableMetadata, error) {
+	md, err := tableMetadataV3(dt)
 	if err != nil {
 		return nil, err
 	}
@@ -103,9 +103,9 @@ func (c *Client) CreateSharedTable(ctx context.Context, ds bqiface.Dataset, dt *
 	return t.Metadata(ctx)
 }
 
-// UpdateSharedSchema updates the schema of the shared table of a v3 datatype.
-func (c *Client) UpdateSharedSchema(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype) error {
-	schema, err := sharedSchema(dt)
+// UpdateSchemaV3 updates the schema of the table of a v3 datatype.
+func (c *Client) UpdateSchemaV3(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype) error {
+	schema, err := schemaV3(dt)
 	if err != nil {
 		return err
 	}

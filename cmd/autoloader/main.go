@@ -73,7 +73,7 @@ func main() {
 
 	// V3 API.
 	gcsV3 := gcsv3.NewClient(storage, bucketNames)
-	hndlrV3 := handler.NewSharedClient(gcsV3, bq)
+	hndlrV3 := handler.NewClientV3(gcsV3, bq)
 	mux.HandleFunc("/v3/load", http.HandlerFunc(hndlrV3.Load))
 
 	srv := &http.Server{

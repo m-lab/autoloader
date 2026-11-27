@@ -19,37 +19,37 @@ import (
 	"github.com/m-lab/go/timex"
 )
 
-// This file holds the handler of v3 load requests. A v3 datatype has one
-// table that all organizations share, so it is discovered, created, updated
+// This file holds the handler of v3 load requests. All organizations of a v3
+// datatype are loaded into one table, so it is discovered, created, updated
 // and loaded differently from v1 and v2 datatypes, which Client handles.
 
-// SharedClient contains the state needed to handle v3 load requests.
-type SharedClient struct {
-	storage SharedStorageClient
-	bq      SharedBQClient
+// ClientV3 contains the state needed to handle v3 load requests.
+type ClientV3 struct {
+	storage StorageClientV3
+	bq      BQClientV3
 }
 
-// SharedStorageClient is an interface for types that support the storage
+// StorageClientV3 is an interface for types that support the storage
 // operations of v3 datatypes.
-type SharedStorageClient interface {
+type StorageClientV3 interface {
 	GetDatatypes(context.Context) []*apiv3.Datatype
 	GetDirs(context.Context, *apiv3.Datatype, string, string) ([]gcsv3.Dir, error)
 }
 
-// SharedBQClient is an interface for types that support the BigQuery
+// BQClientV3 is an interface for types that support the BigQuery
 // operations of v3 datatypes.
-type SharedBQClient interface {
+type BQClientV3 interface {
 	GetDataset(context.Context, string) (bqiface.Dataset, error)
 	CreateDataset(context.Context, *api.Datatype) (bqiface.Dataset, error)
 	GetTableMetadata(context.Context, bqiface.Dataset, string) (*bigquery.TableMetadata, error)
-	CreateSharedTable(context.Context, bqiface.Dataset, *apiv3.Datatype) (*bigquery.TableMetadata, error)
-	UpdateSharedSchema(context.Context, bqiface.Dataset, *apiv3.Datatype) error
+	CreateTableV3(context.Context, bqiface.Dataset, *apiv3.Datatype) (*bigquery.TableMetadata, error)
+	UpdateSchemaV3(context.Context, bqiface.Dataset, *apiv3.Datatype) error
 	LoadHive(context.Context, bqiface.Dataset, string, *apiv3.Datatype, ...string) error
 }
 
-// NewSharedClient creates a new instance of SharedClient.
-func NewSharedClient(storage SharedStorageClient, bq SharedBQClient) *SharedClient {
-	return &SharedClient{
+// NewClientV3 creates a new instance of ClientV3.
+func NewClientV3(storage StorageClientV3, bq BQClientV3) *ClientV3 {
+	return &ClientV3{
 		storage: storage,
 		bq:      bq,
 	}
@@ -57,7 +57,7 @@ func NewSharedClient(storage SharedStorageClient, bq SharedBQClient) *SharedClie
 
 // Load fetches the v3 datatypes from storage and loads the archived data of
 // all their organizations to BigQuery.
-func (c *SharedClient) Load(w http.ResponseWriter, r *http.Request) {
+func (c *ClientV3) Load(w http.ResponseWriter, r *http.Request) {
 	opts, err := getOpts(r.URL.Query())
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -86,9 +86,9 @@ func (c *SharedClient) Load(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-// processDatatype gets or creates the dataset and the shared table of a
+// processDatatype gets or creates the dataset and the table of a
 // datatype, updates the table's schema and loads the data.
-func (c *SharedClient) processDatatype(ctx context.Context, dt *apiv3.Datatype, opts *LoadOptions) error {
+func (c *ClientV3) processDatatype(ctx context.Context, dt *apiv3.Datatype, opts *LoadOptions) error {
 	count := func(operation string, err error) {
 		status := "OK"
 		if err != nil {
@@ -111,7 +111,7 @@ func (c *SharedClient) processDatatype(ctx context.Context, dt *apiv3.Datatype, 
 	// Get or create table.
 	_, err = c.bq.GetTableMetadata(ctx, ds, dt.Table())
 	if err != nil {
-		_, err = c.bq.CreateSharedTable(ctx, ds, dt)
+		_, err = c.bq.CreateTableV3(ctx, ds, dt)
 		count("create-table", err)
 		if err != nil {
 			log.Printf("failed to create BigQuery table %s.%s: %v", dt.Dataset(), dt.Table(), err)
@@ -124,7 +124,7 @@ func (c *SharedClient) processDatatype(ctx context.Context, dt *apiv3.Datatype, 
 	// Update the schema on every run. Comparing the schema file's time with
 	// the table's, as v1 and v2 do, misses a file uploaded while a run is in
 	// progress: by the next run it is older than the table.
-	err = c.bq.UpdateSharedSchema(ctx, ds, dt)
+	err = c.bq.UpdateSchemaV3(ctx, ds, dt)
 	count("update-schema", err)
 	if err != nil {
 		log.Printf("failed to update BigQuery table %s.%s: %v", dt.Dataset(), dt.Table(), err)
@@ -146,7 +146,7 @@ const changeMargin = 6 * time.Hour
 // load loads the data of a datatype. Each date with new objects is loaded with
 // a single hive-partitioned job that names every org's directory. A failed
 // date does not stop later dates; the last error is returned.
-func (c *SharedClient) load(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype, opts *LoadOptions) error {
+func (c *ClientV3) load(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype, opts *LoadOptions) error {
 	dirs, err := c.storage.GetDirs(ctx, dt, opts.start, opts.end)
 	if err != nil {
 		log.Printf("failed to get directories for %s.%s: %v", dt.Experiment, dt.Name, err)
@@ -206,7 +206,7 @@ func (c *SharedClient) load(ctx context.Context, ds bqiface.Dataset, dt *apiv3.D
 // date range, and otherwise when its partition is empty, when its metadata
 // cannot be read, or when an object is newer than the partition's last load
 // (less changeMargin).
-func (c *SharedClient) changed(ctx context.Context, ds bqiface.Dataset, partition string, group []gcsv3.Dir, opts *LoadOptions) bool {
+func (c *ClientV3) changed(ctx context.Context, ds bqiface.Dataset, partition string, group []gcsv3.Dir, opts *LoadOptions) bool {
 	if opts.period == "custom" {
 		return true
 	}
@@ -233,7 +233,7 @@ func (c *SharedClient) changed(ctx context.Context, ds bqiface.Dataset, partitio
 // the job fails, the destination partition is left as it was, so no org gets
 // that date's new data until the cause is gone, and the failure is counted
 // per org (see countLoadErrors).
-func (c *SharedClient) loadDate(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype, date string, group []gcsv3.Dir) error {
+func (c *ClientV3) loadDate(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype, date string, group []gcsv3.Dir) error {
 	partition := dt.Table() + "$" + date
 	paths := make([]string, 0, len(group))
 	for _, dir := range group {
@@ -261,7 +261,7 @@ type loadFailure struct {
 	reason string
 }
 
-// countLoadErrors increments metrics.LoadErrorsTotal for a failed shared load.
+// countLoadErrors increments metrics.LoadErrorsTotal for a failed load.
 // BigQuery names the offending file for most bad data (corrupt or malformed
 // files, unknown fields), which identifies the org: each org named is counted
 // once per reason. An error that names no file, such as a backend error or a

@@ -65,7 +65,7 @@ func (c *Client) GetDatatypes(ctx context.Context) []*apiv3.Datatype {
 	seen := map[string]string{}
 
 	for _, bucket := range c.Buckets {
-		bucket.Walk(ctx, path.Join(prefix, "tables"), func(schema *storagex.Object) error {
+		err := bucket.Walk(ctx, path.Join(prefix, "tables"), func(schema *storagex.Object) error {
 			dt, err := getDatatype(ctx, bucket, schema)
 			if err != nil {
 				log.Printf("skipping v3 schema: %v", err)
@@ -87,6 +87,9 @@ func (c *Client) GetDatatypes(ctx context.Context) []*apiv3.Datatype {
 			datatypes = append(datatypes, dt)
 			return nil
 		})
+		if err != nil {
+			log.Printf("failed to list v3 schemas: %v", err)
+		}
 	}
 
 	return datatypes
@@ -116,7 +119,7 @@ func getDatatype(ctx context.Context, b *storagex.Bucket, schema *storagex.Objec
 		Version:     "v3",
 		Location:    attrs.Location,
 		Schema:      file,
-		UpdatedTime: schema.ObjectAttrs.Updated,
+		UpdatedTime: schema.Updated,
 		Bucket:      b,
 	}
 
