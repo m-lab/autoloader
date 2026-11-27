@@ -10,6 +10,7 @@ import (
 	"github.com/m-lab/autoloader/bq"
 	"github.com/m-lab/autoloader/gcs"
 	gcsv2 "github.com/m-lab/autoloader/gcs/v2"
+	gcsv3 "github.com/m-lab/autoloader/gcs/v3"
 	"github.com/m-lab/autoloader/handler"
 	"github.com/m-lab/go/flagx"
 	"github.com/m-lab/go/prometheusx"
@@ -69,6 +70,11 @@ func main() {
 	gcsV2 := gcsv2.NewClient(storage, bucketNames)
 	hndlrV2 := handler.NewClient(gcsV2, bq)
 	mux.HandleFunc("/v2/load", http.HandlerFunc(hndlrV2.Load))
+
+	// V3 API.
+	gcsV3 := gcsv3.NewClient(storage, bucketNames)
+	hndlrV3 := handler.NewClientV3(gcsV3, bq)
+	mux.HandleFunc("/v3/load", http.HandlerFunc(hndlrV3.Load))
 
 	srv := &http.Server{
 		Addr:    listenAddr,

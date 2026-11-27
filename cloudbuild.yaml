@@ -149,3 +149,44 @@ steps:
   - kubectl apply -f autoloader-monthly-cronjob.yaml
   env:
   - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin
+
+###################
+## Autoloader v3
+###################
+# The v3 cron jobs run in the same cluster as the v2 ones (see the v2
+# credentials step), so their names carry the version to keep them apart.
+- name: gcr.io/$PROJECT_ID/gcloud-jsonnet-cbif:1.1
+  id: "v3/Deploy cron jobs"
+  args:
+  # The "hourly" job runs every 3 hours and loads the data for the last day.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-v3-hourly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/v3-hourly/'
+        -e 's/{{CRON_SCHEDULE}}/0 *\/3 * * */'
+        -e 's/{{VERSION}}/v3/'
+        -e 's/{{LOAD_PERIOD}}/daily/'
+        autoloader-v3-hourly-cronjob.yaml
+  # The "weekly" job runs once per week and loads the data from the last month
+  # to the last day.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-v3-weekly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/v3-weekly/'
+        -e 's/{{CRON_SCHEDULE}}/0 0 * * 0/'
+        -e 's/{{VERSION}}/v3/'
+        -e 's/{{LOAD_PERIOD}}/monthly/'
+        autoloader-v3-weekly-cronjob.yaml
+  # The "monthly" job runs once per month and loads the data from the last year
+  # to the last month.
+  - cp k8s/autoloader-cronjob.yaml.template autoloader-v3-monthly-cronjob.yaml
+  - |-
+    sed -i -e 's/{{FREQUENCY}}/v3-monthly/'
+        -e 's/{{CRON_SCHEDULE}}/0 0 1 * */'
+        -e 's/{{VERSION}}/v3/'
+        -e 's/{{LOAD_PERIOD}}/annually/'
+        autoloader-v3-monthly-cronjob.yaml
+  # Apply
+  - kubectl apply -f autoloader-v3-hourly-cronjob.yaml
+  - kubectl apply -f autoloader-v3-weekly-cronjob.yaml
+  - kubectl apply -f autoloader-v3-monthly-cronjob.yaml
+  env:
+  - PROJECT_IN=mlab-sandbox,mlab-staging,mlab-autojoin

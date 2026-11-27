@@ -19,7 +19,7 @@ var (
 				10000, 21500, 46400,
 			},
 		},
-		[]string{"experiment", "datatype", "period", "status"},
+		[]string{"version", "experiment", "datatype", "period", "status"},
 	)
 
 	// BigQueryOperationsTotal counts the number of create, update, and load operations
@@ -29,7 +29,7 @@ var (
 			Name: "autoloader_bigquery_operations_total",
 			Help: "The number of create, update, and load operations that the autoloader performs.",
 		},
-		[]string{"experiment", "datatype", "operation", "status"},
+		[]string{"version", "experiment", "datatype", "operation", "status"},
 	)
 
 	// LoadedDates keeps track of the most recently loaded date for each datatype
@@ -39,6 +39,17 @@ var (
 			Name: "autoloader_loaded_dates",
 			Help: "Most recently loaded date for each datatype and job period type.",
 		},
-		[]string{"experiment", "datatype", "period", "status"},
+		[]string{"version", "experiment", "datatype", "period", "status"},
+	)
+
+	// LoadErrorsTotal counts the failed v3 load jobs by the org whose file made
+	// the job fail and BigQuery's reason. The org is "unknown" when the error
+	// names no file.
+	LoadErrorsTotal = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "autoloader_load_errors_total",
+			Help: "The number of failed v3 load jobs, by the org whose file failed and BigQuery's reason.",
+		},
+		[]string{"version", "experiment", "datatype", "org", "reason"},
 	)
 )
