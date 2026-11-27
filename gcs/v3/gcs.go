@@ -3,23 +3,36 @@ package v3
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/m-lab/autoloader/api"
 	apiv3 "github.com/m-lab/autoloader/api/v3"
-	"github.com/m-lab/autoloader/gcs"
 	"github.com/m-lab/go/storagex"
+	"github.com/m-lab/go/timex"
 	"google.golang.org/api/iterator"
 )
 
 var (
 	// orgPrefix matches a top-level "org=<name>" prefix and captures the name.
 	orgPrefix = regexp.MustCompile(`^org=([a-z0-9]([a-z0-9-]*[a-z0-9])?)$`)
+	// dateDir matches the "YYYY/MM/DD/" start of an object name relative to
+	// its datatype directory and captures the date.
+	dateDir = regexp.MustCompile(`^(\d{4}/\d{2}/\d{2})/`)
 )
+
+// Dir is the directory of one organization's data for one datatype and date.
+type Dir struct {
+	Path   string    // GCS path (e.g., "gs://bucket/autoload/v3/org=foo/ndt/ndt7/2026/11/18/*").
+	Date   time.Time // Path date.
+	Org    string    // Organization that owns the directory.
+	Newest time.Time // Creation time of the newest object in the directory.
+}
 
 const (
 	prefix           = "autoload/v3/"
@@ -46,8 +59,8 @@ func NewClient(c *storage.Client, names []string) *Client {
 
 // GetDatatypes gets a list of datatypes for the Client's buckets. A datatype is
 // denoted by a schema file "autoload/v3/tables/<experiment>/<datatype>.table.json".
-func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
-	datatypes := make([]*api.Datatype, 0)
+func (c *Client) GetDatatypes(ctx context.Context) []*apiv3.Datatype {
+	datatypes := make([]*apiv3.Datatype, 0)
 	// Destination tables seen so far and the schema object that claimed them.
 	seen := map[string]string{}
 
@@ -80,14 +93,14 @@ func (c *Client) GetDatatypes(ctx context.Context) []*api.Datatype {
 }
 
 // getDatatype creates the datatype for a schema object.
-func getDatatype(ctx context.Context, b *storagex.Bucket, schema *storagex.Object) (*api.Datatype, error) {
+func getDatatype(ctx context.Context, b *storagex.Bucket, schema *storagex.Object) (*apiv3.Datatype, error) {
 	// Expect "autoload/v3/tables/<experiment>/<datatype>.table.json".
 	parts := strings.Split(schema.Name, "/")
 	if len(parts) != 5 || parts[2] != "tables" || !strings.HasSuffix(parts[4], schemaFileSuffix) {
 		return nil, fmt.Errorf("invalid schema path %s", schema.Name)
 	}
 
-	file, err := gcs.ReadFile(ctx, schema.ObjectHandle)
+	file, err := readFile(ctx, schema)
 	if err != nil || len(file) == 0 {
 		return nil, fmt.Errorf("invalid schema file under %s", schema.Name)
 	}
@@ -142,29 +155,83 @@ func getBucketOrgs(ctx context.Context, b *storagex.Bucket) ([]string, error) {
 	}
 }
 
-// GetDirs returns all the directory paths for a datatype within a start (inclusive) and
-// end (exclusive) date, tagged with their organization. Organizations without objects
-// in the date range contribute nothing.
-func (c *Client) GetDirs(ctx context.Context, dt *api.Datatype, start, end string) ([]gcs.Dir, error) {
+// readFile returns the contents of an object.
+func readFile(ctx context.Context, o *storagex.Object) ([]byte, error) {
+	reader, err := o.NewReader(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer reader.Close()
+	return io.ReadAll(reader)
+}
+
+// GetDirs returns every organization's directories for a datatype within a
+// start (inclusive) and end (exclusive) date, ordered by organization and then
+// by date. Organizations without objects in the date range contribute nothing.
+func (c *Client) GetDirs(ctx context.Context, dt *apiv3.Datatype, start, end string) ([]Dir, error) {
 	orgs, err := getBucketOrgs(ctx, dt.Bucket)
 	if err != nil {
 		log.Printf("failed to get organizations for bucket: %v", err)
 		return nil, err
 	}
 
-	var dirs []gcs.Dir
+	var dirs []Dir
 	for _, org := range orgs {
-		p := path.Join(prefix, "org="+org, dt.Experiment, dt.Name)
-		orgDirs, err := gcs.GetDirs(ctx, dt, p, start, end)
+		orgDirs, err := getOrgDirs(ctx, dt.Bucket, org, path.Join(prefix, "org="+org, dt.Experiment, dt.Name), start, end)
+		if err != nil {
+			log.Printf("failed to list bucket: %v", err)
+			return nil, err
+		}
+		dirs = append(dirs, orgDirs...)
+	}
+
+	return dirs, nil
+}
+
+// getOrgDirs returns the date directories "<p>/YYYY/MM/DD" of one organization
+// within a start (inclusive) and end (exclusive) date, each with the creation
+// time of its newest object.
+func getOrgDirs(ctx context.Context, b *storagex.Bucket, org, p, start, end string) ([]Dir, error) {
+	it := b.Objects(ctx, &storage.Query{
+		Prefix:      p + "/",
+		StartOffset: path.Join(p, start),
+		EndOffset:   path.Join(p, end),
+	})
+
+	var dirs []Dir
+	index := map[string]int{} // Date to position in dirs.
+	for {
+		attr, err := it.Next()
+		if err == iterator.Done {
+			return dirs, nil
+		}
 		if err != nil {
 			return nil, err
 		}
 
-		for _, d := range orgDirs {
-			d.Org = org
-			dirs = append(dirs, d)
+		m := dateDir.FindStringSubmatch(strings.TrimPrefix(attr.Name, p+"/"))
+		if m == nil {
+			continue
 		}
-	}
+		if i, ok := index[m[1]]; ok {
+			if attr.Created.After(dirs[i].Newest) {
+				dirs[i].Newest = attr.Created
+			}
+			continue
+		}
 
-	return dirs, nil
+		date, err := time.Parse(timex.YYYYMMDDWithSlash, m[1])
+		if err != nil {
+			// The path looks like a date but is not one (e.g., 2026/11/31).
+			log.Printf("skipping object without a valid date: %s", attr.Name)
+			continue
+		}
+		index[m[1]] = len(dirs)
+		dirs = append(dirs, Dir{
+			Path:   "gs://" + path.Join(attr.Bucket, p, m[1], "*"),
+			Date:   date,
+			Org:    org,
+			Newest: attr.Created,
+		})
+	}
 }

@@ -12,7 +12,6 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/m-lab/autoloader/api"
 	apiv3 "github.com/m-lab/autoloader/api/v3"
-	"github.com/m-lab/autoloader/gcs"
 	"github.com/m-lab/go/storagex"
 	"github.com/m-lab/go/testingx"
 )
@@ -51,13 +50,13 @@ func TestClient_GetDatatypes(t *testing.T) {
 		name    string
 		buckets []string
 		objs    []fakestorage.Object
-		want    []*api.Datatype
+		want    []*apiv3.Datatype
 	}{
 		{
 			name:    "seed",
 			buckets: []string{testBucket},
 			objs:    seed(),
-			want: []*api.Datatype{
+			want: []*apiv3.Datatype{
 				apiv3.NewDatatype(api.DatatypeOpts{
 					Name:        "ndt7",
 					Experiment:  "ndt",
@@ -79,7 +78,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 				obj("archive-mlab-bar", prefix+"tables/ndt/ndt7.table.json", schema),
 				obj("archive-mlab-bar", prefix+"tables/ndt/scamper2.table.json", schema),
 			},
-			want: []*api.Datatype{
+			want: []*apiv3.Datatype{
 				apiv3.NewDatatype(api.DatatypeOpts{
 					Name:        "ndt7",
 					Experiment:  "ndt",
@@ -104,7 +103,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			name:    "inexistent-bucket",
 			buckets: []string{"archive-not-existent"},
 			objs:    []fakestorage.Object{},
-			want:    []*api.Datatype{},
+			want:    []*apiv3.Datatype{},
 		},
 		{
 			name:    "invalid-schema-file",
@@ -112,7 +111,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			objs: []fakestorage.Object{
 				obj(testBucket, prefix+"tables/ndt/ndt7.table.json", nil),
 			},
-			want: []*api.Datatype{},
+			want: []*apiv3.Datatype{},
 		},
 		{
 			name:    "not-a-schema-file",
@@ -120,7 +119,7 @@ func TestClient_GetDatatypes(t *testing.T) {
 			objs: []fakestorage.Object{
 				obj(testBucket, prefix+"tables/ndt/ndt7.txt", schema),
 			},
-			want: []*api.Datatype{},
+			want: []*apiv3.Datatype{},
 		},
 	}
 	for _, tt := range tests {
@@ -151,7 +150,7 @@ func TestClient_GetDirs(t *testing.T) {
 		objs    []fakestorage.Object
 		start   string
 		end     string
-		want    []gcs.Dir
+		want    []Dir
 		wantErr bool
 	}{
 		{
@@ -159,7 +158,7 @@ func TestClient_GetDirs(t *testing.T) {
 			objs:  seed(),
 			start: "2026/11/18",
 			end:   "2026/11/20",
-			want: []gcs.Dir{
+			want: []Dir{
 				{Org: "alpha", Path: dirPath("alpha", "2026/11/18"), Date: time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)},
 				{Org: "alpha", Path: dirPath("alpha", "2026/11/19"), Date: time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)},
 				{Org: "foo-bar", Path: dirPath("foo-bar", "2026/11/18"), Date: time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC)},
@@ -170,7 +169,7 @@ func TestClient_GetDirs(t *testing.T) {
 			objs:  seed(),
 			start: "2026/11/19",
 			end:   "2026/11/20",
-			want: []gcs.Dir{
+			want: []Dir{
 				{Org: "alpha", Path: dirPath("alpha", "2026/11/19"), Date: time.Date(2026, 11, 19, 0, 0, 0, 0, time.UTC)},
 			},
 		},
@@ -179,14 +178,14 @@ func TestClient_GetDirs(t *testing.T) {
 			objs:  seed(),
 			start: "2026/12/01",
 			end:   "2026/12/02",
-			want:  []gcs.Dir{},
+			want:  []Dir{},
 		},
 		{
 			name:    "inexistent-bucket",
 			objs:    []fakestorage.Object{},
 			start:   "2026/11/18",
 			end:     "2026/11/20",
-			want:    []gcs.Dir{},
+			want:    []Dir{},
 			wantErr: true,
 		},
 	}
@@ -214,7 +213,7 @@ func TestClient_GetDirs(t *testing.T) {
 			}
 
 			// Newest comes from object creation times, which fakestorage assigns.
-			if !cmp.Equal(got, tt.want, cmpopts.EquateEmpty(), cmpopts.IgnoreFields(gcs.Dir{}, "Newest")) {
+			if !cmp.Equal(got, tt.want, cmpopts.EquateEmpty(), cmpopts.IgnoreFields(Dir{}, "Newest")) {
 				t.Errorf("Client.GetDirs() = %v, want %v", got, tt.want)
 			}
 			for _, d := range got {
@@ -239,6 +238,33 @@ func TestGetBucketOrgs(t *testing.T) {
 	want := []string{"alpha", "empty", "foo-bar"}
 	if !cmp.Equal(got, want) {
 		t.Errorf("getBucketOrgs() = %v, want %v", got, want)
+	}
+}
+
+func TestClient_GetDirs_InvalidDate(t *testing.T) {
+	// A path that looks like a date but is not one is skipped, and so is a
+	// date directory that is not followed by an object name.
+	server, err := fakestorage.NewServerWithOptions(fakestorage.Options{
+		InitialObjects: []fakestorage.Object{
+			obj(testBucket, prefix+"org=alpha/ndt/ndt7/2026/11/31/a.jsonl.gz", nil),
+			obj(testBucket, prefix+"org=alpha/ndt/ndt7/2026/11/300/a.jsonl.gz", nil),
+			obj(testBucket, prefix+"org=alpha/ndt/ndt7/2026/11/30/a.jsonl.gz", nil),
+		},
+	})
+	testingx.Must(t, err, "error initializing GCS server")
+	defer server.Stop()
+
+	dt := apiv3.NewDatatype(api.DatatypeOpts{
+		Name:       "ndt7",
+		Experiment: "ndt",
+		Version:    "v3",
+		Bucket:     &storagex.Bucket{BucketHandle: server.Client().Bucket(testBucket)},
+	}, "gs://"+testBucket+"/autoload/v3")
+
+	got, err := (&Client{}).GetDirs(context.Background(), dt, "2026/11/01", "2026/12/01")
+	testingx.Must(t, err, "failed to get dirs")
+	if len(got) != 1 || got[0].Path != dirPath("alpha", "2026/11/30") {
+		t.Errorf("Client.GetDirs() = %v, want only the directory of 2026/11/30", got)
 	}
 }
 

@@ -35,11 +35,6 @@ type Datatype struct {
 	// UpdateView indicates whether the view should be updated in case the schema
 	// changes.
 	UpdateView bool
-	// HivePrefix is the common source URI prefix (e.g., "gs://bucket/autoload/v3")
-	// of a datatype whose organizations are loaded into one shared table, with
-	// the organization taken from the "org=<name>" component of the object path.
-	// It is empty for datatypes that are loaded into one table per organization.
-	HivePrefix string
 }
 
 // NewMlabDatatype returns a new Datatype with an MlabNamer.

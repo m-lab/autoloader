@@ -2,18 +2,140 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net/http"
 	"regexp"
 	"sort"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/bigquery"
 	"github.com/googleapis/google-cloud-go-testing/bigquery/bqiface"
 	"github.com/m-lab/autoloader/api"
-	"github.com/m-lab/autoloader/gcs"
+	apiv3 "github.com/m-lab/autoloader/api/v3"
+	gcsv3 "github.com/m-lab/autoloader/gcs/v3"
 	"github.com/m-lab/autoloader/metrics"
 	"github.com/m-lab/go/timex"
 )
+
+// This file holds the handler of v3 load requests. A v3 datatype has one
+// table that all organizations share, so it is discovered, created, updated
+// and loaded differently from v1 and v2 datatypes, which Client handles.
+
+// SharedClient contains the state needed to handle v3 load requests.
+type SharedClient struct {
+	storage SharedStorageClient
+	bq      SharedBQClient
+}
+
+// SharedStorageClient is an interface for types that support the storage
+// operations of v3 datatypes.
+type SharedStorageClient interface {
+	GetDatatypes(context.Context) []*apiv3.Datatype
+	GetDirs(context.Context, *apiv3.Datatype, string, string) ([]gcsv3.Dir, error)
+}
+
+// SharedBQClient is an interface for types that support the BigQuery
+// operations of v3 datatypes.
+type SharedBQClient interface {
+	GetDataset(context.Context, string) (bqiface.Dataset, error)
+	CreateDataset(context.Context, *api.Datatype) (bqiface.Dataset, error)
+	GetTableMetadata(context.Context, bqiface.Dataset, string) (*bigquery.TableMetadata, error)
+	CreateSharedTable(context.Context, bqiface.Dataset, *apiv3.Datatype) (*bigquery.TableMetadata, error)
+	UpdateSharedSchema(context.Context, bqiface.Dataset, *apiv3.Datatype) error
+	LoadHive(context.Context, bqiface.Dataset, string, *apiv3.Datatype, ...string) error
+}
+
+// NewSharedClient creates a new instance of SharedClient.
+func NewSharedClient(storage SharedStorageClient, bq SharedBQClient) *SharedClient {
+	return &SharedClient{
+		storage: storage,
+		bq:      bq,
+	}
+}
+
+// Load fetches the v3 datatypes from storage and loads the archived data of
+// all their organizations to BigQuery.
+func (c *SharedClient) Load(w http.ResponseWriter, r *http.Request) {
+	opts, err := getOpts(r.URL.Query())
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	ctx := r.Context()
+	errs := []string{}
+	for _, dt := range c.storage.GetDatatypes(ctx) {
+		t := time.Now()
+		status := "OK"
+		if err := c.processDatatype(ctx, dt, opts); err != nil {
+			status = "error"
+			errs = append(errs, fmt.Sprintf("failed to autoload %s.%s: %s", dt.Experiment, dt.Name, err.Error()))
+		}
+		metrics.AutoloadDuration.WithLabelValues(dt.Version, dt.Experiment, dt.Name, opts.period, status).Observe(time.Since(t).Seconds())
+	}
+
+	if len(errs) != 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(strings.Join(errs, "\n")))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+// processDatatype gets or creates the dataset and the shared table of a
+// datatype, updates the table's schema and loads the data.
+func (c *SharedClient) processDatatype(ctx context.Context, dt *apiv3.Datatype, opts *LoadOptions) error {
+	count := func(operation string, err error) {
+		status := "OK"
+		if err != nil {
+			status = "error"
+		}
+		metrics.BigQueryOperationsTotal.WithLabelValues(dt.Version, dt.Experiment, dt.Name, operation, status).Inc()
+	}
+
+	// Get or create dataset.
+	ds, err := c.bq.GetDataset(ctx, dt.Dataset())
+	if err != nil {
+		ds, err = c.bq.CreateDataset(ctx, dt.Datatype)
+		count("create-dataset", err)
+		if err != nil {
+			log.Printf("failed to create BigQuery dataset %s: %v", dt.Dataset(), err)
+			return err
+		}
+	}
+
+	// Get or create table.
+	_, err = c.bq.GetTableMetadata(ctx, ds, dt.Table())
+	if err != nil {
+		_, err = c.bq.CreateSharedTable(ctx, ds, dt)
+		count("create-table", err)
+		if err != nil {
+			log.Printf("failed to create BigQuery table %s.%s: %v", dt.Dataset(), dt.Table(), err)
+			return err
+		}
+		// A new table is loaded with the complete history.
+		opts = periodOpts("everything")
+	}
+
+	// Update the schema on every run. Comparing the schema file's time with
+	// the table's, as v1 and v2 do, misses a file uploaded while a run is in
+	// progress: by the next run it is older than the table.
+	err = c.bq.UpdateSharedSchema(ctx, ds, dt)
+	count("update-schema", err)
+	if err != nil {
+		log.Printf("failed to update BigQuery table %s.%s: %v", dt.Dataset(), dt.Table(), err)
+		return err
+	}
+
+	// Load data.
+	err = c.load(ctx, ds, dt, opts)
+	count("load", err)
+	return err
+}
 
 // changeMargin is subtracted from a partition's last-modified time when
 // deciding whether a date has new objects. It covers an object that arrives
@@ -21,25 +143,19 @@ import (
 // partition's new last-modified time and would otherwise never be noticed.
 const changeMargin = 6 * time.Hour
 
-// loadShared loads a datatype whose orgs share one table. Each date with new
-// objects is loaded with a single hive-partitioned job that names every org's
-// directory. A failed date does not stop later dates; the last error is
-// returned.
-func (c *Client) loadShared(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, opts *LoadOptions) error {
-	dirs, err := c.StorageClient.GetDirs(ctx, dt, opts.start, opts.end)
+// load loads the data of a datatype. Each date with new objects is loaded with
+// a single hive-partitioned job that names every org's directory. A failed
+// date does not stop later dates; the last error is returned.
+func (c *SharedClient) load(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype, opts *LoadOptions) error {
+	dirs, err := c.storage.GetDirs(ctx, dt, opts.start, opts.end)
 	if err != nil {
 		log.Printf("failed to get directories for %s.%s: %v", dt.Experiment, dt.Name, err)
 		return err
 	}
 
 	// Group the orgs' directories by date.
-	byDate := map[string][]gcs.Dir{}
+	byDate := map[string][]gcsv3.Dir{}
 	for _, dir := range dirs {
-		if dir.Date.IsZero() {
-			// The path looks like a date but is not one (e.g., 2026/11/31).
-			log.Printf("skipping directory without a valid date: %s", dir.Path)
-			continue
-		}
 		d := dir.Date.Format(timex.YYYYMMDD)
 		byDate[d] = append(byDate[d], dir)
 	}
@@ -74,10 +190,10 @@ func (c *Client) loadShared(ctx context.Context, ds bqiface.Dataset, dt *api.Dat
 		if e != nil {
 			err = e
 			log.Printf("failed to load %s to BigQuery table %s.%s: %v", date, dt.Dataset(), partition, e)
-			metrics.LoadedDates.WithLabelValues(Version(dt), dt.Experiment, dt.Name, opts.period, "error").Set(unix)
+			metrics.LoadedDates.WithLabelValues(dt.Version, dt.Experiment, dt.Name, opts.period, "error").Set(unix)
 			continue
 		}
-		metrics.LoadedDates.WithLabelValues(Version(dt), dt.Experiment, dt.Name, opts.period, "OK").Set(unix)
+		metrics.LoadedDates.WithLabelValues(dt.Version, dt.Experiment, dt.Name, opts.period, "OK").Set(unix)
 	}
 
 	log.Printf("finished loading data to BigQuery table %s.%s for dates %s to %s, loaded %d of %d dates, duration: %s",
@@ -90,12 +206,12 @@ func (c *Client) loadShared(ctx context.Context, ds bqiface.Dataset, dt *api.Dat
 // date range, and otherwise when its partition is empty, when its metadata
 // cannot be read, or when an object is newer than the partition's last load
 // (less changeMargin).
-func (c *Client) changed(ctx context.Context, ds bqiface.Dataset, partition string, group []gcs.Dir, opts *LoadOptions) bool {
+func (c *SharedClient) changed(ctx context.Context, ds bqiface.Dataset, partition string, group []gcsv3.Dir, opts *LoadOptions) bool {
 	if opts.period == "custom" {
 		return true
 	}
 
-	md, err := c.BQClient.GetTableMetadata(ctx, ds, partition)
+	md, err := c.bq.GetTableMetadata(ctx, ds, partition)
 	if err != nil {
 		log.Printf("failed to get metadata of %s, loading it: %v", partition, err)
 		return true
@@ -117,14 +233,14 @@ func (c *Client) changed(ctx context.Context, ds bqiface.Dataset, partition stri
 // the job fails, the destination partition is left as it was, so no org gets
 // that date's new data until the cause is gone, and the failure is counted
 // per org (see countLoadErrors).
-func (c *Client) loadDate(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, date string, group []gcs.Dir) error {
+func (c *SharedClient) loadDate(ctx context.Context, ds bqiface.Dataset, dt *apiv3.Datatype, date string, group []gcsv3.Dir) error {
 	partition := dt.Table() + "$" + date
 	paths := make([]string, 0, len(group))
 	for _, dir := range group {
 		paths = append(paths, dir.Path)
 	}
 
-	err := c.BQClient.LoadHive(ctx, ds, partition, dt, paths...)
+	err := c.bq.LoadHive(ctx, ds, partition, dt, paths...)
 	if err != nil && ctx.Err() == nil {
 		// A cancelled request says nothing about the data.
 		countLoadErrors(dt, err)
@@ -151,9 +267,9 @@ type loadFailure struct {
 // once per reason. An error that names no file, such as a backend error or a
 // row whose date differs from the partition's, is counted once under the org
 // "unknown".
-func countLoadErrors(dt *api.Datatype, err error) {
+func countLoadErrors(dt *apiv3.Datatype, err error) {
 	for _, f := range loadFailures(err) {
-		metrics.LoadErrorsTotal.WithLabelValues(Version(dt), dt.Experiment, dt.Name, f.org, f.reason).Inc()
+		metrics.LoadErrorsTotal.WithLabelValues(dt.Version, dt.Experiment, dt.Name, f.org, f.reason).Inc()
 	}
 }
 

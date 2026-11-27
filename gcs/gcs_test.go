@@ -141,16 +141,14 @@ func TestClient_GetDatatypes(t *testing.T) {
 
 func TestGetDirs(t *testing.T) {
 	tests := []struct {
-		name  string
-		objs  []fakestorage.Object
-		start string
-		end   string
-		dt    string
-		exp   string
-		want  []Dir
-		// wantNewest, if set, is the expected Newest of the first returned Dir.
-		wantNewest time.Time
-		wantErr    bool
+		name    string
+		objs    []fakestorage.Object
+		start   string
+		end     string
+		dt      string
+		exp     string
+		want    []Dir
+		wantErr bool
 	}{
 		{
 			name: "success",
@@ -201,29 +199,25 @@ func TestGetDirs(t *testing.T) {
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
 						Name:       prefix + "experiment1/datatype1/2023/03/06/",
-						Created:    time.Date(2023, 03, 06, 0, 0, 0, 0, time.UTC),
 					},
 				},
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
 						Name:       prefix + "experiment1/datatype1/2023/03/06/filename.jsonl.gz",
-						Created:    time.Date(2023, 03, 07, 1, 0, 0, 0, time.UTC),
 					},
 				},
 				{
 					ObjectAttrs: fakestorage.ObjectAttrs{
 						BucketName: testBucket,
 						Name:       prefix + "experiment1/datatype1/2023/03/06/filename2.jsonl.gz",
-						Created:    time.Date(2023, 03, 06, 1, 0, 0, 0, time.UTC),
 					},
 				},
 			},
-			dt:         "datatype1",
-			exp:        "experiment1",
-			start:      "2023/03/05",
-			end:        "2023/03/07",
-			wantNewest: time.Date(2023, 03, 07, 1, 0, 0, 0, time.UTC),
+			dt:    "datatype1",
+			exp:   "experiment1",
+			start: "2023/03/05",
+			end:   "2023/03/07",
 			want: []Dir{
 				{
 					Path: "gs://" + path.Join(testBucket, prefix, "experiment1/datatype1/2023/03/06/*"),
@@ -316,12 +310,8 @@ func TestGetDirs(t *testing.T) {
 				return
 			}
 
-			// Newest is set from object creation times, which fakestorage assigns.
-			if !cmp.Equal(got, tt.want, cmpopts.EquateEmpty(), cmpopts.IgnoreFields(Dir{}, "Newest")) {
+			if !cmp.Equal(got, tt.want, cmpopts.EquateEmpty()) {
 				t.Errorf("Client.GetDirs() = %v, want %v", got, tt.want)
-			}
-			if !tt.wantNewest.IsZero() && !got[0].Newest.Equal(tt.wantNewest) {
-				t.Errorf("Client.GetDirs() Newest = %v, want %v", got[0].Newest, tt.wantNewest)
 			}
 		})
 	}

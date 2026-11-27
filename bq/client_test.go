@@ -413,3 +413,124 @@ func TestClient_UpdateSchemaAndView(t *testing.T) {
 		})
 	}
 }
+
+func TestClient_Load(t *testing.T) {
+	tests := []struct {
+		name    string
+		loader  *bqfake.Loader
+		uris    []string
+		wantErr bool
+	}{
+		{
+			name:    "success",
+			loader:  bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, nil), nil),
+			wantErr: false,
+		},
+		{
+			name:   "success-multiple-uris",
+			loader: bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, nil), nil),
+			uris: []string{
+				"gs://fake-bucket/autoload/v1/experiment/datatype/2023/03/26/*",
+				"gs://fake-bucket/autoload/v1/experiment/datatype/2023/03/27/*",
+				"gs://fake-bucket/autoload/v1/experiment/datatype/2023/03/28/*",
+			},
+			wantErr: false,
+		},
+		{
+			name: "loader-err",
+			loader: bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, nil),
+				errors.New("loader err")),
+			wantErr: true,
+		},
+		{
+			name: "job-err",
+			loader: bqfake.NewLoader(bqfake.NewJob(&bigquery.JobStatus{}, errors.New("job error")),
+				nil),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			opts := bqfake.TableOpts{
+				Dataset:  bqfake.Dataset{},
+				Name:     datatypeID,
+				Metadata: &bigquery.TableMetadata{},
+				Loader:   tt.loader,
+			}
+			table := bqfake.NewTable(opts)
+			ds := bqfake.NewDataset(map[string]*bqfake.Table{datatypeID: table}, nil, nil)
+			bq, err := bqfake.NewClient(context.Background(), projectID, map[string]*bqfake.Dataset{experimentID: ds})
+			testingx.Must(t, err, "failed to create fake bq client")
+			c := &Client{Client: bq}
+
+			uris := append(tt.uris, "gs://fake-bucket/autoload/v1/experiment/datatype/YYYY/MM/DD/*")
+			err = c.Load(context.Background(), ds, datatypeID, uris...)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Client.Load() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestClient_jobErrors(t *testing.T) {
+	err1 := &bigquery.Error{
+		Message: "Error1",
+	}
+	err2 := &bigquery.Error{
+		Message: "Error2",
+	}
+	tests := []struct {
+		name    string
+		status  *bigquery.JobStatus
+		wantErr bool
+		wantNum int
+	}{
+		{
+			name:    "no-error",
+			status:  &bigquery.JobStatus{},
+			wantErr: false,
+		},
+		{
+			name: "one-error",
+			status: &bigquery.JobStatus{
+				Errors: []*bigquery.Error{err1},
+			},
+			wantErr: true,
+			wantNum: 1,
+		},
+		{
+			name: "multiple-errors",
+			status: &bigquery.JobStatus{
+				Errors: []*bigquery.Error{err1, err2},
+			},
+			wantErr: true,
+			wantNum: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := jobErrors(tt.status)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("jobErrors() error = %v, wantErr = %v", err, tt.wantErr)
+			}
+
+			if !tt.wantErr {
+				return
+			}
+
+			u, ok := err.(interface {
+				Unwrap() []error
+			})
+			if !ok {
+				t.Fatal("jobErrors() failed to cast returned error")
+			}
+
+			gotNum := len(u.Unwrap())
+			if gotNum != tt.wantNum {
+				t.Fatalf("jobErrors() gotNum = %d, wantNum = %d", gotNum, tt.wantNum)
+			}
+		})
+	}
+}

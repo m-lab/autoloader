@@ -11,9 +11,6 @@ func TestNewDatatype(t *testing.T) {
 	if dt.HivePrefix != prefix {
 		t.Errorf("HivePrefix = %q, want %q", dt.HivePrefix, prefix)
 	}
-	if dt.UpdateView {
-		t.Error("UpdateView = true, want false")
-	}
 	if dt.Organization != "" {
 		t.Errorf("Organization = %q, want empty", dt.Organization)
 	}

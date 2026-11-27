@@ -43,19 +43,6 @@ type fakeBQ struct {
 	createCount  int
 	updateCount  int
 	loadCount    int
-
-	// Shared-table (hive) loading. Errors are scripted per table name, and
-	// every call is recorded.
-	hiveErrs map[string]error
-	calls    []call
-}
-
-// call records one shared-table operation requested from the fake.
-type call struct {
-	method string
-	table  string   // Destination table.
-	prefix string   // Hive prefix of the datatype.
-	uris   []string // Source URIs.
 }
 
 func (bq *fakeBQ) GetDataset(ctx context.Context, name string) (bqiface.Dataset, error) {
@@ -412,9 +399,4 @@ func TestClient_load(t *testing.T) {
 			}
 		})
 	}
-}
-
-func (bq *fakeBQ) LoadHive(ctx context.Context, ds bqiface.Dataset, name string, dt *api.Datatype, uri ...string) error {
-	bq.calls = append(bq.calls, call{method: "LoadHive", table: name, prefix: dt.HivePrefix, uris: uri})
-	return bq.hiveErrs[name]
 }

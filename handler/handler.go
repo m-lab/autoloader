@@ -36,7 +36,6 @@ type BQClient interface {
 	CreateTable(context.Context, bqiface.Dataset, *api.Datatype) (*bigquery.TableMetadata, error)
 	UpdateSchema(context.Context, bqiface.Dataset, *api.Datatype) error
 	Load(context.Context, bqiface.Dataset, string, ...string) error
-	LoadHive(context.Context, bqiface.Dataset, string, *api.Datatype, ...string) error
 }
 
 // Version returns the autoload version of a datatype for use as a metric
@@ -117,10 +116,8 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 		opts = periodOpts("everything")
 	}
 
-	// Update table (if necessary). A shared table's schema is updated on every
-	// run, because a schema file uploaded while a run is in progress is older
-	// than the table by the next run and would never be applied.
-	if dt.HivePrefix != "" || dt.UpdatedTime.After(md.LastModifiedTime) {
+	// Update table (if necessary).
+	if dt.UpdatedTime.After(md.LastModifiedTime) {
 		err = c.BQClient.UpdateSchema(ctx, ds, dt)
 		if err != nil {
 			log.Printf("failed to update BigQuery table %s.%s: %v", dt.Dataset(), dt.Table(), err)
@@ -143,10 +140,6 @@ func (c *Client) processDatatype(ctx context.Context, dt *api.Datatype, opts *Lo
 
 // load loads the contents of a set of storage directories to a date-partitioned table.
 func (c *Client) load(ctx context.Context, ds bqiface.Dataset, dt *api.Datatype, opts *LoadOptions) error {
-	if dt.HivePrefix != "" {
-		return c.loadShared(ctx, ds, dt, opts)
-	}
-
 	dirs, err := c.StorageClient.GetDirs(ctx, dt, opts.start, opts.end)
 	if err != nil {
 		log.Printf("failed to get directories for %s.%s: %v: ", dt.Experiment, dt.Name, err)

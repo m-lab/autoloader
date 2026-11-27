@@ -36,10 +36,8 @@ type Client struct {
 
 // Dir represents a GCS directory.
 type Dir struct {
-	Path   string    // GCS path.
-	Date   time.Time // Path date.
-	Org    string    // Organization that owns the directory (empty for v1 and v2).
-	Newest time.Time // Creation time of the newest object in the directory.
+	Path string    // GCS path.
+	Date time.Time // Path date.
 }
 
 // StorageReader is a Reader to a GCS object.
@@ -130,7 +128,6 @@ func GetDirs(ctx context.Context, dt *api.Datatype, p, start, end string) ([]Dir
 	}
 
 	dirNames := set.NewSet[string]()
-	dirIdx := make(map[string]int) // Index into dirs, to update Newest.
 	var dirs []Dir
 	for {
 		attr, err := it.Next()
@@ -149,24 +146,18 @@ func GetDirs(ctx context.Context, dt *api.Datatype, p, start, end string) ([]Dir
 			continue
 		}
 
-		// If the directory has already been added, only track its newest object.
+		// Check if directory has already been added.
 		if dirNames.Contains(dirPath) {
-			i := dirIdx[dirPath]
-			if attr.Created.After(dirs[i].Newest) {
-				dirs[i].Newest = attr.Created
-			}
 			continue
 		}
 		dirNames.Add(dirPath)
-		dirIdx[dirPath] = len(dirs)
 
 		// Extract date from directory (YYYY/MM/DD).
 		date := strings.TrimPrefix(dirPath, p+"/")
 		format, _ := time.Parse(timex.YYYYMMDDWithSlash, date)
 		dir := Dir{
-			Path:   "gs://" + path.Join(attr.Bucket, dirPath, "/*"),
-			Date:   format,
-			Newest: attr.Created,
+			Path: "gs://" + path.Join(attr.Bucket, dirPath, "/*"),
+			Date: format,
 		}
 		dirs = append(dirs, dir)
 	}
